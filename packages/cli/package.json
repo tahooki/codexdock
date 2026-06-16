@@ -1,0 +1,30 @@
+{
+  "name": "codexdock",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "codexdock": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node ../../scripts/make-executable.mjs dist/index.js",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "worker": "tsx src/index.ts start --adapter fake"
+  },
+  "dependencies": {
+    "@codexdock/codex-adapter": "workspace:*",
+    "@codexdock/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
