@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { codexdock, persistence } from "@/lib/codexdock";
+import { codexDockOwner, codexdock, persistence } from "@/lib/codexdock";
 import type { InvokeType } from "@codexdock/protocol";
 
 export const dynamic = "force-dynamic";
@@ -7,25 +7,25 @@ export const dynamic = "force-dynamic";
 async function createInvocation(formData: FormData) {
   "use server";
 
-  const type = String(formData.get("type") ?? "generate_data") as InvokeType;
+  const type = String(formData.get("type") ?? "generate_object") as InvokeType;
   const prompt = String(formData.get("prompt") ?? "");
-  const payloadText = String(formData.get("payload") ?? "{}");
-  let payload: Record<string, unknown>;
+  const parametersText = String(formData.get("parameters") ?? "{}");
+  let parameters: Record<string, unknown>;
 
   try {
-    payload = JSON.parse(payloadText) as Record<string, unknown>;
+    parameters = JSON.parse(parametersText) as Record<string, unknown>;
   } catch {
-    payload = {};
+    parameters = {};
   }
 
-  await codexdock.invoke({ type, prompt, payload });
+  await codexdock.invoke({ type, prompt, parameters });
   revalidatePath("/");
 }
 
 export default async function Home() {
   const status = await codexdock.getWorkerStatus();
   const invocations = persistence.listInvocations
-    ? await persistence.listInvocations()
+    ? await persistence.listInvocations(codexDockOwner)
     : [];
   const hasOnlineWorker = status.workers.some((worker) => worker.status === "online");
 
@@ -47,10 +47,11 @@ export default async function Home() {
           <h2>Create invocation</h2>
           <label>
             Type
-            <select name="type" defaultValue="generate_data">
-              <option value="generate_data">generate_data</option>
+            <select name="type" defaultValue="generate_object">
+              <option value="generate_text">generate_text</option>
+              <option value="generate_object">generate_object</option>
               <option value="generate_file">generate_file</option>
-              <option value="generate_image_plan">generate_image_plan</option>
+              <option value="generate_image">generate_image</option>
             </select>
           </label>
           <label>
@@ -61,8 +62,11 @@ export default async function Home() {
             />
           </label>
           <label>
-            Payload JSON
-            <textarea name="payload" defaultValue={'{"count":5,"format":"json"}'} />
+            Parameters JSON
+            <textarea
+              name="parameters"
+              defaultValue={'{"count":5,"format":"json","usage":"example"}'}
+            />
           </label>
           <button type="submit">Create pending invocation</button>
           {!hasOnlineWorker ? (

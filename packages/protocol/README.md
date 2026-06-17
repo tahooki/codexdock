@@ -2,7 +2,7 @@
 
 Shared protocol types and runtime schemas for CodexDock.
 
-This package contains the invocation, worker, error, and event schemas used by the CodexDock SDK, CLI, and adapters.
+This package contains the owner-scoped invocation, worker, discovery, result, error, and event schemas used by the CodexDock SDK, CLI, and adapters.
 
 ## Install
 
@@ -21,9 +21,11 @@ import {
 } from "@codexdock/protocol";
 
 const request = invokeRequestSchema.parse({
-  type: "generate_data",
+  ownerKind: "system",
+  ownerId: "local-dev",
+  type: "generate_object",
   prompt: "Create product card data.",
-  payload: { count: 4 },
+  parameters: { count: 4, usage: "admin-preview" },
 });
 
 console.log(CODEXDOCK_PROTOCOL_VERSION, request);

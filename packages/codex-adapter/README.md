@@ -27,9 +27,9 @@ const events = new MemoryEventSink();
 const result = await adapter.invoke(
   {
     invocationId: "inv_123",
-    type: "generate_data",
+    type: "generate_object",
     prompt: "Return a small JSON summary.",
-    payload: {},
+    parameters: { usage: "adapter-test" },
   },
   events,
 );
@@ -41,4 +41,4 @@ For non-git development folders, pass `skipGitRepoCheck: true`.
 
 ## Status
 
-Codex SDK execution is functional, but structured JSON result enforcement and finer auth/error classification are still TODO.
+The adapter validates `generate_text`, `generate_object`, `generate_file`, and `generate_image` result envelopes before returning them to the worker loop. Finer Codex auth/error classification is still planned.
