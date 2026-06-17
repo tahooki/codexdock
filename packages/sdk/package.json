@@ -1,6 +1,8 @@
 {
   "name": "@codexdock/sdk",
   "version": "0.1.0",
+  "description": "Server-side SDK for routing app AI invocations to local CodexDock workers.",
+  "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -9,6 +11,23 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tahooki/codexdock.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/tahooki/codexdock#readme",
+  "bugs": {
+    "url": "https://github.com/tahooki/codexdock/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
