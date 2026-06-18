@@ -403,7 +403,7 @@ code {
   padding: 52px 0;
 }
 
-.section:last-child {
+.section:last-of-type {
   border-bottom: 0;
 }
 
