@@ -42,6 +42,7 @@ type CliConfig = LocalWorkerConnection;
 
 const configDir = join(homedir(), ".codexdock");
 const configPath = join(configDir, "config.json");
+const envFallbackDisabledPath = join(configDir, "env-fallback-disabled");
 
 async function main() {
   const args = process.argv.slice(2);
@@ -63,7 +64,12 @@ async function main() {
   }
 
   if (command === "logout") {
-    await logoutCommand();
+    await logoutCommand(args.slice(1));
+    return;
+  }
+
+  if (command === "version" || command === "--version" || command === "-v") {
+    await versionCommand();
     return;
   }
 
@@ -252,9 +258,24 @@ async function statusCommand(args: string[]) {
   console.log(JSON.stringify(status, null, 2));
 }
 
-async function logoutCommand() {
+async function logoutCommand(args: string[]) {
+  const options = parseFlags(args);
+  await mkdir(configDir, { recursive: true });
   await rm(configPath, { force: true });
-  console.log("Logged out.");
+  if (options["keep-env"] === "true") {
+    await rm(envFallbackDisabledPath, { force: true });
+    console.log("Logged out. Environment fallback remains enabled.");
+    return;
+  }
+
+  await writeFile(envFallbackDisabledPath, new Date().toISOString(), "utf8");
+  console.log("Logged out. Saved connections removed; CodexDock will ignore env fallback until the next connect.");
+}
+
+async function versionCommand() {
+  const packageJsonUrl = new URL("../package.json", import.meta.url);
+  const packageJson = JSON.parse(await readFile(packageJsonUrl, "utf8")) as { version?: unknown };
+  console.log(typeof packageJson.version === "string" ? packageJson.version : "unknown");
 }
 
 async function doctorCommand(args: string[]) {
@@ -399,6 +420,7 @@ async function saveConnection(connection: LocalWorkerConnection) {
     connections,
   };
   await writeFile(configPath, JSON.stringify(nextConfig, null, 2), "utf8");
+  await rm(envFallbackDisabledPath, { force: true });
 }
 
 async function loadConfigWithEnv(connectionId?: string): Promise<CliConfig> {
@@ -416,7 +438,8 @@ async function loadConfigWithEnv(connectionId?: string): Promise<CliConfig> {
     throw new Error(`CodexDock connection not found: ${selectedId}`);
   }
 
-  if (!config.defaultConnectionId && serverUrl && workerToken) {
+  const envFallbackDisabled = await isEnvFallbackDisabled();
+  if (!config.defaultConnectionId && !envFallbackDisabled && serverUrl && workerToken) {
     const normalizedServerUrl = normalizeUrl(serverUrl);
     return {
       connectionId:
@@ -430,7 +453,25 @@ async function loadConfigWithEnv(connectionId?: string): Promise<CliConfig> {
     };
   }
 
+  if (!config.defaultConnectionId && envFallbackDisabled && serverUrl && workerToken) {
+    throw new Error(
+      "No saved CodexDock connection. Run codexdock connect <server-url> --code <pairing-code>. Env fallback is ignored after logout.",
+    );
+  }
+
   throw new Error(`CodexDock connection not found: ${selectedId}`);
+}
+
+async function isEnvFallbackDisabled(): Promise<boolean> {
+  try {
+    await readFile(envFallbackDisabledPath, "utf8");
+    return true;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
 }
 
 async function readConfigFile(): Promise<CliConfigFile> {
@@ -558,8 +599,9 @@ Commands:
   codexdock connect <server-url> --code <pairing-code> [--owner-kind user|system] [--owner-id <id>]
   codexdock start [--connection <id>] [--codex-workdir <path>] [--skip-git-repo-check]
   codexdock status [--connection <id>]
-  codexdock logout
+  codexdock logout [--keep-env]
   codexdock doctor
+  codexdock version
 
 Dev env:
   CODEXDOCK_SERVER_URL=http://localhost:4321

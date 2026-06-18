@@ -1,6 +1,6 @@
 {
   "name": "codexdock",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "CLI worker that connects host apps to a local Codex runtime.",
   "license": "MIT",
   "type": "module",

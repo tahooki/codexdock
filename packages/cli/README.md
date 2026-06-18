@@ -29,11 +29,14 @@ pnpm dlx codexdock doctor
 codexdock connect <server-url> --code <pairing-code>
 codexdock start [--connection <id>]
 codexdock status [--connection <id>]
-codexdock logout
+codexdock logout [--keep-env]
 codexdock doctor
+codexdock version
 ```
 
 `connect` reads the host app's discovery manifest when available, exchanges the pairing code for an owner-scoped worker token, and stores that endpoint map in `~/.codexdock/config.json`. Each successful `connect` becomes the default connection used by the next `codexdock start`; if a previous worker token is revoked by the host, the old worker exits instead of retrying forever. The config can hold multiple host/owner connections; use `--connection <id>` to select one.
+
+`logout` removes saved connections and, by default, makes `start` and `status` ignore `CODEXDOCK_SERVER_URL` and `CODEXDOCK_WORKER_TOKEN` fallback values until the next successful `connect`. Use `logout --keep-env` only when you intentionally want dev environment credentials to remain usable.
 
 ## Local Development Worker
 

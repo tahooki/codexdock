@@ -175,6 +175,8 @@ codexdock connect https://your-app.example.com --code "$PAIRING_CODE"
 
 `connect` reads `/api/codexdock/discovery` when available, exchanges the pairing code for an owner-scoped worker token, and stores the host's endpoint map locally. Each successful `connect` becomes the default connection used by the next `codexdock start`; in the example host, a new token for the same owner and worker revokes earlier tokens. Use `--connection <id>` with `start` or `status` if you have more than one host/owner connection.
 
+`codexdock logout` removes saved connections and makes the CLI ignore `CODEXDOCK_SERVER_URL` and `CODEXDOCK_WORKER_TOKEN` fallback values until the next successful `connect`. Use `codexdock logout --keep-env` only for local dev sessions where those environment credentials should remain active.
+
 Start the worker:
 
 ```bash

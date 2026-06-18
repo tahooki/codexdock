@@ -252,6 +252,10 @@ codexdock start --skip-git-repo-check`;
             <code>{workerCommand}</code>
           </pre>
         </div>
+        <p className="mutedLine">
+          Run <code>codexdock logout</code> to clear saved connections and ignore
+          stale CodexDock environment fallback values until the next connect.
+        </p>
       </section>
 
       <section className="section" aria-labelledby="create-heading">
