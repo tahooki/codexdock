@@ -399,6 +399,6 @@ jobs:
 - [x] browser/passkey 인증으로 이전 publish 완료
 - [x] consumer 실행 확인은 `pnpm dlx codexdock@<version> doctor`로 수행
 - [x] 다음 배포용 package version bump
-- [ ] 현재 version tarball publish 완료
+- [x] 현재 version tarball publish 완료
 - [ ] token 기반 publish를 사용할 경우 token 권한과 2FA bypass 설정 검증
 - [ ] GitHub Actions 자동 배포를 붙일 경우 `NPM_TOKEN` secret으로 dry run 후 적용
