@@ -2,7 +2,7 @@
 
 Local CLI worker for CodexDock.
 
-The CLI connects a host web app to a local Codex runtime. It polls the host app for pending invocations, runs them with the Codex SDK adapter by default, and submits results back to the app. A fake adapter is available only for deterministic local smoke tests.
+The CLI connects a host web app to a local Codex runtime. It polls the host app for pending invocations, runs them with the Codex SDK adapter, and submits results back to the app.
 
 ## Install
 
@@ -20,10 +20,10 @@ pnpm dlx codexdock doctor
 
 ```bash
 codexdock connect <server-url> --code <pairing-code> [--owner-kind user|system] [--owner-id <id>]
-codexdock start [--connection <id>] [--adapter sdk|fake]
+codexdock start [--connection <id>]
 codexdock status [--connection <id>]
 codexdock logout
-codexdock doctor [--adapter sdk|fake]
+codexdock doctor
 ```
 
 `connect` reads the host app's discovery manifest when available and stores that endpoint map in `~/.codexdock/config.json`. The config can hold multiple host/owner connections; use `--connection <id>` to select one.
@@ -44,16 +44,6 @@ For a non-git development folder:
 codexdock start \
   --codex-workdir /path/to/project \
   --skip-git-repo-check
-```
-
-## Fake Smoke Worker
-
-```bash
-CODEXDOCK_SERVER_URL=http://localhost:4321 \
-CODEXDOCK_WORKER_TOKEN=dev-worker-token \
-CODEXDOCK_OWNER_KIND=system \
-CODEXDOCK_OWNER_ID=local-dev \
-codexdock start --adapter fake
 ```
 
 ## Status

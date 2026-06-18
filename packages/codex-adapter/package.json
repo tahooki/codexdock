@@ -1,6 +1,6 @@
 {
   "name": "@codexdock/codex-adapter",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Codex SDK adapter layer for CodexDock workers.",
   "license": "MIT",
   "type": "module",

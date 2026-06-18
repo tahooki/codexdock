@@ -161,12 +161,6 @@ codexdock start \
   --skip-git-repo-check
 ```
 
-The default adapter is the Codex SDK adapter. The fake adapter exists only for deterministic local smoke tests:
-
-```bash
-codexdock start --adapter fake
-```
-
 ## Result Contracts
 
 `generate_text` results are stored as text envelopes:
@@ -283,7 +277,7 @@ Still planned:
 - `@codexdock/sdk`: server-side SDK for host web apps
 - `codexdock`: local CLI worker
 - `@codexdock/protocol`: shared protocol types and Zod schemas
-- `@codexdock/codex-adapter`: Codex SDK adapter plus a fake adapter for smoke tests
+- `@codexdock/codex-adapter`: Codex SDK adapter and shared worker interfaces
 
 ## Development
 

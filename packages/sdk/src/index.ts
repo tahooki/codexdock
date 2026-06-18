@@ -11,7 +11,6 @@ import type {
   WorkerRecord,
 } from "@codexdock/protocol";
 import {
-  CODEXDOCK_PROTOCOL_VERSION,
   codexDockErrorSchema,
   discoveryManifestSchema,
   generatedFileResultSchema,
@@ -341,7 +340,6 @@ export function createCodexDock(options: CodexDockOptions) {
       new URL(`${endpointBasePath}${path}`, origin).toString();
 
     return discoveryManifestSchema.parse({
-      protocolVersion: CODEXDOCK_PROTOCOL_VERSION,
       appName,
       endpoints: {
         discovery: endpoint("/discovery"),

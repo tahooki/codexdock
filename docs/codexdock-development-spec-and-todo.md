@@ -111,7 +111,7 @@ CodexDock CLI
 
 Codex Adapter
   - Codex SDK wrapper
-  - dev-only fake adapter for smoke tests/examples
+  - internal smoke-test worker for smoke tests/examples
   - result normalization
 ```
 
@@ -137,7 +137,6 @@ codexdock/
 
 - SDK, CLI, adapter가 공유하는 타입과 schema를 제공한다.
 - runtime validation은 `zod`를 기본으로 한다.
-- protocol version을 포함한다.
 
 주요 타입:
 
@@ -293,8 +292,8 @@ interface CodexDockPersistence {
 
 ```bash
 codexdock connect <server-url> --code <pairing-code>
-codexdock start [--adapter sdk|fake]
-codexdock start --adapter sdk --codex-workdir <project-path> [--skip-git-repo-check]
+codexdock start [--connection <id>]
+codexdock start --codex-workdir <project-path> [--skip-git-repo-check]
 codexdock status
 codexdock logout
 codexdock doctor
@@ -305,7 +304,6 @@ codexdock doctor
 동일한 값은 환경변수로도 설정할 수 있다.
 
 ```bash
-CODEXDOCK_ADAPTER=sdk
 CODEXDOCK_CODEX_WORKDIR=/path/to/project
 CODEXDOCK_CODEX_SKIP_GIT_REPO_CHECK=true
 ```
@@ -336,7 +334,7 @@ Polling 정책:
 역할:
 
 - Codex SDK 실행을 감싼다.
-- real SDK adapter를 기본으로 제공하고, smoke/example용 fake adapter를 별도로 제공한다.
+- real SDK adapter를 기본으로 제공하고, smoke/example용 internal smoke-test worker를 별도로 제공한다.
 - SDK 결과를 CodexDock result payload로 정규화한다.
 
 초기 interface:
@@ -380,7 +378,7 @@ interface CodexAdapter {
 
 MVP adapter:
 
-- `FakeCodexAdapter`: 예제와 SDK/CLI e2e 테스트 전용
+- `Internal smoke-test worker`: 예제와 SDK/CLI e2e 테스트 전용
 - `SdkCodexAdapter`: 실제 Codex SDK 실행용
 
 ## 6. API 스펙
@@ -625,7 +623,7 @@ Network:
 - Supabase 없음
 - Redis 없음
 - queue provider 없음
-- Codex SDK 연결 전 smoke 검증에는 fake adapter 사용
+- Codex SDK 연결 전 smoke 검증에는 internal smoke-test worker 사용
 
 구성:
 
@@ -637,7 +635,7 @@ apps/example-web
   - result preview
 
 packages/cli
-  - dev-only fake worker 실행 가능
+  - dev-only internal smoke worker 실행 가능
 ```
 
 예제 성공 흐름:
@@ -648,7 +646,7 @@ packages/cli
 3. UI에서 generate_object 또는 generate_image 요청 생성
 4. memory store에 pending invocation 생성
 5. worker가 next로 claim
-6. dev-only fake adapter가 JSON result 생성
+6. internal smoke-test worker가 JSON result 생성
 7. worker가 result 제출
 8. UI가 completed result 표시
 ```
@@ -680,7 +678,6 @@ packages/cli
 - [x] zod schema 작성
 - [x] request/response 타입 export
 - [x] error code 타입 작성
-- [x] protocol version 상수 추가
 - [ ] schema unit test 작성
 
 ### Phase 3: SDK 구현
@@ -708,9 +705,9 @@ packages/cli
 - [x] `codexdock status` 작성
 - [x] `codexdock doctor` 작성
 
-### Phase 5: Fake Adapter E2E
+### Phase 5: Internal Smoke Worker E2E
 
-- [x] dev-only fake adapter 작성
+- [x] internal smoke-test worker 작성
 - [x] example web invoke UI 작성
 - [x] worker status UI 작성
 - [x] invocation list/result preview 작성
@@ -783,7 +780,7 @@ QA가 확인해야 하는 핵심 경험:
 - status는 pending으로 유지되고, UI는 worker offline 안내를 별도로 표시한다.
 - 사용자는 worker 실행이 필요하다는 메시지를 볼 수 있다.
 
-#### QA-03: Fake worker 완료 흐름
+#### QA-03: Internal smoke worker 완료 흐름
 
 목적:
 
@@ -804,7 +801,7 @@ QA가 확인해야 하는 핵심 경험:
 
 통과 기준:
 
-- dev-only fake worker가 실패를 제출할 수 있다.
+- dev-only internal smoke worker가 실패를 제출할 수 있다.
 - invocation status가 failed가 된다.
 - error code/message가 UI/API에 표시된다.
 - 실패 후 worker loop는 계속 살아 있다.
@@ -852,7 +849,7 @@ QA가 확인해야 하는 핵심 경험:
 
 목적:
 
-- fake adapter가 아닌 실제 로컬 Codex 실행을 검증한다.
+- internal smoke-test worker가 아닌 실제 로컬 Codex 실행을 검증한다.
 
 통과 기준:
 

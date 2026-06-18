@@ -121,9 +121,9 @@ async function connectCommand(args: string[]) {
 
 async function startCommand(args: string[]) {
   const options = parseFlags(args);
+  assertSdkAdapterOption(options.adapter);
   const config = await loadConfigWithEnv(options.connection);
-  const adapterKind = (options.adapter as "fake" | "sdk" | undefined) ?? adapterKindFromEnv();
-  const adapter = createAdapter(adapterKind, codexAdapterOptions(options));
+  const adapter = createAdapter(codexAdapterOptions(options));
   const deviceName = options["device-name"] ?? "local-dev";
   const capabilities = [
     "generate_text",
@@ -131,7 +131,7 @@ async function startCommand(args: string[]) {
     "generate_file",
     "generate_image",
     "json_result",
-    adapterKind === "sdk" ? "codex_sdk" : "fake_runner",
+    "codex_sdk",
   ];
 
   const connect = await postJson<{ polling?: { emptyMinMs?: number; emptyMaxMs?: number } }>(
@@ -210,10 +210,8 @@ async function logoutCommand() {
 
 async function doctorCommand(args: string[]) {
   const options = parseFlags(args);
-  const adapter = createAdapter(
-    (options.adapter as "fake" | "sdk" | undefined) ?? adapterKindFromEnv(),
-    codexAdapterOptions(options),
-  );
+  assertSdkAdapterOption(options.adapter);
+  const adapter = createAdapter(codexAdapterOptions(options));
   const result = await adapter.doctor();
   console.log(JSON.stringify(result, null, 2));
 }
@@ -450,10 +448,6 @@ function defaultConnectionId(
   return `${serverUrl}|${ownerKind}:${ownerId}|${workerId}`;
 }
 
-function adapterKindFromEnv(): "fake" | "sdk" {
-  return process.env.CODEXDOCK_ADAPTER === "fake" ? "fake" : "sdk";
-}
-
 function codexAdapterOptions(options: Record<string, string | undefined>) {
   return {
     workingDirectory: options["codex-workdir"] ?? process.env.CODEXDOCK_CODEX_WORKDIR,
@@ -461,6 +455,12 @@ function codexAdapterOptions(options: Record<string, string | undefined>) {
       options["skip-git-repo-check"] === "true" ||
       process.env.CODEXDOCK_CODEX_SKIP_GIT_REPO_CHECK === "true",
   };
+}
+
+function assertSdkAdapterOption(value: string | undefined): void {
+  const configured = value ?? process.env.CODEXDOCK_ADAPTER;
+  if (!configured || configured === "sdk") return;
+  throw new Error("Adapter selection was removed. CodexDock now always uses the Codex SDK adapter.");
 }
 
 function withJitter(ms: number): number {
@@ -476,17 +476,16 @@ function printHelp() {
 
 Commands:
   codexdock connect <server-url> --code <pairing-code> [--owner-kind user|system] [--owner-id <id>]
-  codexdock start [--connection <id>] [--adapter sdk|fake] [--codex-workdir <path>] [--skip-git-repo-check]
+  codexdock start [--connection <id>] [--codex-workdir <path>] [--skip-git-repo-check]
   codexdock status [--connection <id>]
   codexdock logout
-  codexdock doctor [--adapter sdk|fake]
+  codexdock doctor
 
 Dev env:
   CODEXDOCK_SERVER_URL=http://localhost:4321
   CODEXDOCK_WORKER_TOKEN=dev-worker-token
   CODEXDOCK_OWNER_KIND=system
   CODEXDOCK_OWNER_ID=local-dev
-  CODEXDOCK_ADAPTER=sdk
   CODEXDOCK_CODEX_WORKDIR=/path/to/project
   CODEXDOCK_CODEX_SKIP_GIT_REPO_CHECK=true
 `);

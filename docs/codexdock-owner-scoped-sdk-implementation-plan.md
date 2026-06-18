@@ -31,7 +31,7 @@ The current repo is an early proof of concept. It already has:
 - a single development worker token model
 - `generate_object`, `generate_file`, and `generate_image` invocation types
 - inline file/image result envelopes for smoke tests
-- a fake adapter and a Codex SDK adapter
+- a Codex SDK adapter and an internal smoke-test worker
 
 This document describes the next architecture. Work should migrate the current implementation toward this plan without pretending all planned APIs already exist.
 
@@ -228,7 +228,6 @@ The host app should publish a discovery manifest. The manifest describes where e
 
 ```json
 {
-  "protocolVersion": "0.1.0",
   "appName": "Saygo",
   "endpoints": {
     "pairingStart": "https://app.example.com/api/ai-bridge/pairing/start",

@@ -14,7 +14,6 @@ pnpm add @codexdock/protocol
 
 ```ts
 import {
-  CODEXDOCK_PROTOCOL_VERSION,
   invokeRequestSchema,
   invocationRecordSchema,
   makeCodexDockError,
@@ -28,7 +27,7 @@ const request = invokeRequestSchema.parse({
   parameters: { count: 4, usage: "admin-preview" },
 });
 
-console.log(CODEXDOCK_PROTOCOL_VERSION, request);
+console.log(request);
 ```
 
 ## Status

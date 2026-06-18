@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-export const CODEXDOCK_PROTOCOL_VERSION = "0.1.0";
-
 export const invocationStatuses = [
   "pending",
   "running",
@@ -263,7 +261,6 @@ export const codexEventSchema = z.object({
 export type CodexEvent = z.infer<typeof codexEventSchema>;
 
 export const discoveryManifestSchema = z.object({
-  protocolVersion: z.string().min(1),
   appName: z.string().min(1),
   endpoints: z.object({
     discovery: z.string().url().optional(),

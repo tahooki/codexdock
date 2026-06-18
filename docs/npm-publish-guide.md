@@ -12,7 +12,7 @@
 | --- | --- | --- | --- |
 | `packages/protocol` | `@codexdock/protocol` | SDK/CLI 공통 protocol, zod schema | 배포 |
 | `packages/sdk` | `@codexdock/sdk` | host web app용 server-side SDK | 배포 |
-| `packages/codex-adapter` | `@codexdock/codex-adapter` | Codex SDK/fake adapter | 배포 |
+| `packages/codex-adapter` | `@codexdock/codex-adapter` | Codex SDK adapter | 배포 |
 | `packages/cli` | `codexdock` | local worker CLI | 배포 |
 
 배포하지 않는 대상:
@@ -27,14 +27,14 @@
 
 - GitHub repo: `https://github.com/tahooki/codexdock`
 - npm CLI는 `tahooki` 계정으로 로그인됨: `npm whoami`가 `tahooki` 반환
-- `@codexdock` npm org/scope는 아직 없음: `npm access list packages @codexdock --json`이 `Scope not found` 반환
-- npm registry에서 아래 package name은 아직 조회되지 않음:
+- npm registry에는 아래 package가 배포되어 있음:
   - `codexdock`
   - `@codexdock/sdk`
   - `@codexdock/protocol`
   - `@codexdock/codex-adapter`
+- 이전 배포는 browser/passkey 인증을 사용하는 tarball publish 방식으로 성공함
 
-주의: scoped package의 `E404`는 "아직 패키지가 없다"는 뜻일 수 있지만, `@codexdock` scope 자체를 내가 소유하거나 접근 가능한지는 별도로 확인해야 한다. `@codexdock` npm organization/scope가 없다면 먼저 생성해야 하고, 이미 다른 사람이 소유한 scope라면 package 이름을 바꿔야 한다.
+첫 배포 전에는 scoped package의 `E404`가 "아직 패키지가 없다"는 뜻일 수 있지만, `@codexdock` scope 자체를 내가 소유하거나 접근 가능한지는 별도로 확인해야 한다. 이미 한 번 publish가 성공한 뒤에는 `npm view <package> versions`와 `npm dist-tag ls <package>`로 현재 published version과 `latest` tag를 확인한다.
 
 ## 3. 배포 전 결정
 
@@ -60,12 +60,12 @@ pnpm -r --filter "./packages/*" publish --access public
 
 ### 버전 정책
 
-현재 모든 배포 대상 package version은 `0.1.0`이다.
+배포 version은 각 package의 `package.json`에서 읽는다. 마지막으로 성공한 npm publish는 registry에서 확인한다.
 
-초기 공개 테스트를 하고 싶으면 둘 중 하나를 선택한다.
+새 배포를 하려면 기존 npm version과 다른 version으로 올려야 한다. npm은 같은 package/version 재배포를 허용하지 않는다.
 
-- 정식 첫 배포: `0.1.0` + `latest`
-- 실험 배포: `0.1.0-beta.0` + `beta`
+- 패치 배포: 현재 package version + `latest`
+- 실험 배포: 현재 package version의 prerelease + `beta`
 
 beta로 먼저 올릴 경우:
 
@@ -131,7 +131,18 @@ npm whoami
 pnpm -r --filter "./packages/*" publish --access public --otp 123456
 ```
 
-CI에서 배포할 경우 npm automation token을 GitHub Actions secret으로 넣는다.
+브라우저/passkey 인증을 쓰는 계정이면 `npm publish --auth-type=web`으로 npm이 인증 URL을 출력한다. Mac에서는 보통 브라우저에서 npm 로그인 후 Touch ID/passkey/security key 인증을 완료하면 publish가 이어진다.
+
+주의: `pnpm publish`는 `--auth-type=web` 옵션을 직접 받지 않는다. 아래 명령은 실패한다.
+
+```bash
+pnpm -r --filter "./packages/*" publish --access public --auth-type=web
+# ERROR: Unknown option: 'auth-type'
+```
+
+브라우저 인증이 필요하면 `pnpm pack`으로 tarball을 만든 뒤 `npm publish <tarball> --auth-type=web`을 사용한다. 자세한 절차는 "권장 배포 순서"를 참고한다.
+
+CI에서 배포할 경우 npm automation token 또는 granular access token을 GitHub Actions secret으로 넣는다. package settings가 token publish를 허용해야 하며, 2FA bypass 권한이 필요한 경우 token 생성 시 설정한다.
 
 ```text
 NPM_TOKEN=...
@@ -175,7 +186,8 @@ pnpm qa:smoke
 rm -rf /tmp/codexdock-npm-pack
 mkdir -p /tmp/codexdock-npm-pack
 pnpm -r --filter "./packages/*" pack --pack-destination /tmp/codexdock-npm-pack
-tar -tzf /tmp/codexdock-npm-pack/codexdock-0.1.0.tgz
+VERSION="$(node -p 'require("./packages/cli/package.json").version')"
+tar -tzf "/tmp/codexdock-npm-pack/codexdock-${VERSION}.tgz"
 ```
 
 확인할 것:
@@ -188,7 +200,14 @@ tar -tzf /tmp/codexdock-npm-pack/codexdock-0.1.0.tgz
 
 ## 6. 권장 배포 순서
 
-이 repo는 pnpm workspace를 사용하고 package 간 의존성이 `workspace:*`로 연결되어 있다. `npm publish`를 package 폴더에서 직접 실행하면 `workspace:*` 처리 문제가 생길 수 있으므로, 기본 배포 명령은 `pnpm publish -r`을 사용한다.
+이 repo는 pnpm workspace를 사용하고 package 간 의존성이 `workspace:*`로 연결되어 있다. `npm publish`를 package 폴더에서 직접 실행하면 `workspace:*` 처리 문제가 생길 수 있다.
+
+기본 원칙:
+
+- 빌드/검증/pack은 `pnpm`으로 한다.
+- `pnpm pack`은 tarball 안의 `workspace:*` dependency를 실제 version으로 변환한다.
+- 브라우저/passkey 인증이 필요하면 publish는 `npm publish <tarball> --auth-type=web`으로 한다.
+- `pnpm publish --auth-type=web`은 지원되지 않는다.
 
 권장 순서:
 
@@ -198,9 +217,91 @@ pnpm install
 pnpm check
 pnpm build
 pnpm qa:smoke
-pnpm -r --filter "./packages/*" publish --access public --dry-run
-pnpm -r --filter "./packages/*" publish --access public
+
+rm -rf /tmp/codexdock-npm-pack
+mkdir -p /tmp/codexdock-npm-pack
+pnpm -r --filter "./packages/*" pack --pack-destination /tmp/codexdock-npm-pack
 ```
+
+tarball 안의 package metadata를 확인한다.
+
+```bash
+for tgz in /tmp/codexdock-npm-pack/*.tgz; do
+  echo "--- $(basename "$tgz")"
+  tar -xOf "$tgz" package/package.json \
+    | node -e 'let s=""; process.stdin.on("data",d=>s+=d); process.stdin.on("end",()=>{const p=JSON.parse(s); console.log(JSON.stringify({name:p.name,version:p.version,dependencies:p.dependencies,bin:p.bin},null,2));})'
+done
+```
+
+확인할 것:
+
+- 모든 package version이 배포하려는 version인가
+- `@codexdock/*` workspace dependency가 실제 version으로 변환되었는가
+- CLI tarball에 `bin.codexdock`가 있는가
+
+### 6.1 Browser/passkey 인증으로 publish
+
+`pnpm -r publish --auth-type=web`은 실패하므로, 생성된 tarball을 dependency 순서대로 `npm publish`한다.
+
+```bash
+VERSION="$(node -p 'require("./packages/cli/package.json").version')"
+
+npm publish "/tmp/codexdock-npm-pack/codexdock-protocol-${VERSION}.tgz" \
+  --access public \
+  --auth-type=web
+
+npm publish "/tmp/codexdock-npm-pack/codexdock-codex-adapter-${VERSION}.tgz" \
+  --access public \
+  --auth-type=web
+
+npm publish "/tmp/codexdock-npm-pack/codexdock-sdk-${VERSION}.tgz" \
+  --access public \
+  --auth-type=web
+
+npm publish "/tmp/codexdock-npm-pack/codexdock-${VERSION}.tgz" \
+  --access public \
+  --auth-type=web
+```
+
+첫 package publish에서 다음과 같은 URL이 출력된다.
+
+```text
+Authenticate your account at:
+https://www.npmjs.com/auth/cli/...
+Press ENTER to open in the browser...
+```
+
+터미널에서 Enter를 눌러 브라우저를 열고 npm 페이지에서 Touch ID/passkey/security key 인증을 완료한다. 인증이 성공하면 해당 publish가 이어진다. 같은 로그인 세션이 살아 있으면 나머지 package는 추가 인증 없이 이어질 수 있다.
+
+### 6.2 Token으로 publish
+
+token을 쓸 경우 채팅/로그에 직접 노출하지 않는다. 로컬 임시 userconfig 또는 CI secret으로만 넣는다.
+
+```bash
+tmp_npmrc="$(mktemp)"
+printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$tmp_npmrc"
+
+VERSION="$(node -p 'require("./packages/cli/package.json").version')"
+
+npm publish "/tmp/codexdock-npm-pack/codexdock-protocol-${VERSION}.tgz" \
+  --access public \
+  --userconfig "$tmp_npmrc"
+
+rm -f "$tmp_npmrc"
+```
+
+token publish가 실패하면서 2FA 관련 403이 나오면 token 권한 또는 package publishing access 설정을 확인한다.
+
+### 6.3 pnpm publish 방식
+
+OTP 또는 token 환경이 `pnpm publish`와 잘 맞는 경우에는 recursive publish도 가능하다.
+
+```bash
+pnpm -r --filter "./packages/*" publish --access public --dry-run --no-git-checks
+pnpm -r --filter "./packages/*" publish --access public --no-git-checks
+```
+
+단, browser/passkey 인증이 필요한 상황에서는 위 방식 대신 tarball + `npm publish --auth-type=web` 방식을 사용한다.
 
 beta tag로 먼저 배포:
 
@@ -209,14 +310,7 @@ pnpm -r --filter "./packages/*" publish --access public --tag beta --dry-run
 pnpm -r --filter "./packages/*" publish --access public --tag beta
 ```
 
-수동으로 하나씩 배포해야 한다면 dependency 순서를 지킨다.
-
-```bash
-pnpm --filter @codexdock/protocol publish --access public
-pnpm --filter @codexdock/sdk publish --access public
-pnpm --filter @codexdock/codex-adapter publish --access public
-pnpm --filter codexdock publish --access public
-```
+수동으로 하나씩 배포해야 한다면 dependency 순서를 지킨다: `@codexdock/protocol` -> `@codexdock/codex-adapter` -> `@codexdock/sdk` -> `codexdock`.
 
 ## 7. 배포 후 검증
 
@@ -227,13 +321,7 @@ mkdir -p /tmp/codexdock-npm-test
 cd /tmp/codexdock-npm-test
 pnpm init
 pnpm add @codexdock/sdk codexdock
-pnpm exec codexdock doctor --adapter fake
-```
-
-실제 Codex SDK adapter까지 확인:
-
-```bash
-pnpm exec codexdock doctor --adapter sdk
+pnpm exec codexdock doctor
 ```
 
 package metadata 확인:
@@ -248,7 +336,7 @@ npm view @codexdock/codex-adapter version
 CLI 실행 확인:
 
 ```bash
-pnpm dlx codexdock doctor --adapter fake
+pnpm dlx codexdock doctor
 ```
 
 ## 8. GitHub Actions 자동 배포 초안
@@ -298,13 +386,19 @@ jobs:
 - npm token은 publish 권한이 있는 automation token 사용
 - package metadata와 `files` 설정 완료
 - 첫 수동 배포로 scope 권한과 package name을 검증
+- browser/passkey 인증이 필요한 개인 계정 publish 흐름은 GitHub Actions에 맞지 않으므로 token publish 권한을 먼저 검증
 
-## 9. 현재 남은 작업
+## 9. 현재 상태와 다음 작업
 
-- [ ] npm 로그인 또는 automation token 준비
-- [ ] `@codexdock` npm scope 소유/생성 확인
-- [ ] 각 package `description`, `license`, `repository`, `publishConfig`, `files` 추가
-- [ ] package별 README 작성
-- [ ] `pnpm -r --filter "./packages/*" publish --dry-run --access public` 실행
-- [ ] 첫 publish는 가능하면 `--tag beta`로 검증
-- [ ] consumer 임시 프로젝트에서 설치/CLI 실행 확인
+- [x] npm 로그인 확인
+- [x] `@codexdock/*` scoped packages publish 가능 확인
+- [x] `codexdock` unscoped CLI package publish 가능 확인
+- [x] 각 package `description`, `license`, `repository`, `publishConfig`, `files` 추가
+- [x] package별 README 작성
+- [x] `pnpm -r --filter "./packages/*" publish --dry-run --access public --no-git-checks` 실행
+- [x] browser/passkey 인증으로 이전 publish 완료
+- [x] consumer 실행 확인은 `pnpm dlx codexdock@<version> doctor`로 수행
+- [x] 다음 배포용 package version bump
+- [ ] 현재 version tarball publish 완료
+- [ ] token 기반 publish를 사용할 경우 token 권한과 2FA bypass 설정 검증
+- [ ] GitHub Actions 자동 배포를 붙일 경우 `NPM_TOKEN` secret으로 dry run 후 적용

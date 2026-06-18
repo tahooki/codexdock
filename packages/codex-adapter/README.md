@@ -4,7 +4,6 @@ Codex adapter layer for CodexDock workers.
 
 This package provides:
 
-- `FakeCodexAdapter` for local examples and smoke tests
 - `SdkCodexAdapter` for running work through `@openai/codex-sdk`
 - shared adapter interfaces and event sinks
 
@@ -19,7 +18,7 @@ pnpm add @codexdock/codex-adapter
 ```ts
 import { createAdapter, MemoryEventSink } from "@codexdock/codex-adapter";
 
-const adapter = createAdapter("sdk", {
+const adapter = createAdapter({
   workingDirectory: "/path/to/project",
 });
 
