@@ -4,6 +4,35 @@ CodexDock lets a web app send AI work to each user's own local Codex runtime ins
 
 The host app stores an invocation with `@codexdock/sdk`. The matching user's local `codexdock` worker connects outbound to the host app, claims that user's pending work, runs it with the Codex SDK, and submits the result back to the host app.
 
+## Developer Note
+
+CodexDock is a bridge, not the ideal end state I hope for.
+
+The experience I want is a first-party Codex capability backed by ChatGPT/OpenAI auth: a user signs in, authorizes a host app, connects that app to their own local Codex runtime, and lets the app request text, image, file, or structured-object generation through a supported AI generation API. The host app should not need to manage ad hoc pairing codes, long-lived worker tokens, or its own local-runtime relay protocol just to let a user bring their own Codex environment.
+
+That desired shape is different from the current CodexDock MVP. CodexDock exists because the first-party version is not available yet. Until that kind of Codex-native, ChatGPT-authenticated generation flow exists, this project provides a practical approximation with explicit host routes, owner-scoped workers, and a local CLI process.
+
+Desired first-party flow:
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant Host as Host web app
+  participant Auth as ChatGPT / OpenAI auth
+  participant Codex as First-party Codex service
+  participant Local as User's local Codex runtime
+
+  User->>Host: Starts a text, image, file, or object generation flow
+  Host->>Auth: Requests user authorization
+  Auth-->>Host: Confirms the user's authorized Codex connection
+  Host->>Codex: Creates an AI generation request for that user
+  Codex->>Local: Delivers work to the user's local Codex runtime
+  Local->>Local: Runs with the user's local context and Codex credentials
+  Local-->>Codex: Submits generated output
+  Codex-->>Host: Returns result or status update
+  Host-->>User: Shows the generated output
+```
+
 ## When To Use It
 
 - You want each signed-in user to use their own local Codex login/runtime.
