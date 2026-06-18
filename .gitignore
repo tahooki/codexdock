@@ -25,6 +25,5 @@ coverage/
 .idea/
 .vscode/
 
-# Keep planning and product docs tracked.
-!docs/
-!docs/**
+# Local planning and product docs
+docs/
