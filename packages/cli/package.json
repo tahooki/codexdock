@@ -1,6 +1,6 @@
 {
   "name": "codexdock",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "description": "CLI worker that connects host apps to a local Codex runtime.",
   "license": "MIT",
   "type": "module",
@@ -25,7 +25,7 @@
     "url": "git+https://github.com/tahooki/codexdock.git",
     "directory": "packages/cli"
   },
-  "homepage": "https://github.com/tahooki/codexdock#readme",
+  "homepage": "https://codexdock.tahooki.com",
   "bugs": {
     "url": "https://github.com/tahooki/codexdock/issues"
   },

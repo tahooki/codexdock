@@ -12,6 +12,7 @@ coverage/
 # Runtime and cache
 .turbo/
 .cache/
+.vercel/
 *.log
 *.pid
 

@@ -270,6 +270,7 @@ export const discoveryManifestSchema = z.object({
     workerConnect: z.string().url(),
     workerNext: z.string().url(),
     workerResult: z.string().url(),
+    pairingExchange: z.string().url().optional(),
     artifactUpload: z.string().url().optional(),
     artifactPrepare: z.string().url().optional(),
   }),

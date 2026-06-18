@@ -35,6 +35,7 @@ export interface CodexDockPersistence {
   getInvocation(invocationId: string, owner: CodexDockOwner): Promise<InvocationRecord | null>;
   listInvocations?(owner: CodexDockOwner): Promise<InvocationRecord[]>;
   claimNextInvocation(input: ClaimNextInvocationInput): Promise<InvocationRecord | null>;
+  cancelInvocation?(input: CancelInvocationInput): Promise<InvocationRecord | null>;
   completeInvocation(input: CompleteInvocationInput): Promise<InvocationRecord>;
   failInvocation(input: FailInvocationInput): Promise<InvocationRecord>;
   upsertWorker(input: UpsertWorkerInput): Promise<WorkerRecord>;
@@ -59,6 +60,10 @@ export interface CompleteInvocationInput extends CodexDockOwner {
   result: unknown;
 }
 
+export interface CancelInvocationInput extends CodexDockOwner {
+  invocationId: string;
+}
+
 export interface FailInvocationInput extends CodexDockOwner {
   workerId: string;
   invocationId: string;
@@ -73,9 +78,7 @@ export type UpsertWorkerInput = Omit<
   status?: WorkerRecord["status"];
 };
 
-export interface WorkerAuthContext extends CodexDockOwner {
-  workerToken?: string;
-}
+export type WorkerAuthContext = CodexDockOwner;
 
 export interface CodexDockOptions {
   persistence: CodexDockPersistence;
@@ -89,6 +92,7 @@ export interface CodexDockOptions {
   defaultOwner?: CodexDockOwner;
   workerOwner?: CodexDockOwner;
   resolveOwner?: (request: Request) => CodexDockOwner | Promise<CodexDockOwner>;
+  resolveWorkerAuth?: (request: Request) => CodexDockOwner | Promise<CodexDockOwner>;
 }
 
 export interface InvokeAccepted {
@@ -135,13 +139,24 @@ export function createCodexDock(options: CodexDockOptions) {
     options.endpointBasePath ?? "/api/codexdock",
   );
 
-  if (!options.workerToken && !options.allowInsecureWorkerAuth) {
+  if (!options.workerToken && !options.resolveWorkerAuth && !options.allowInsecureWorkerAuth) {
     throw new Error(
-      "CodexDock workerToken is required. Pass a high-entropy worker token, or set allowInsecureWorkerAuth only for local smoke tests.",
+      "CodexDock workerToken or resolveWorkerAuth is required. Pass high-entropy worker auth, or set allowInsecureWorkerAuth only for local smoke tests.",
     );
   }
 
-  function authenticateWorker(request: Request): WorkerAuthContext {
+  async function authenticateWorker(request: Request): Promise<WorkerAuthContext> {
+    if (options.resolveWorkerAuth) {
+      const parsed = ownerSchema.safeParse(await options.resolveWorkerAuth(request));
+      if (!parsed.success) {
+        throw new CodexDockHttpError(
+          401,
+          makeCodexDockError("WORKER_AUTH_INVALID", "Unable to resolve CodexDock worker owner."),
+        );
+      }
+      return parsed.data;
+    }
+
     if (!options.workerToken && options.allowInsecureWorkerAuth) return workerOwner;
 
     const auth = request.headers.get("authorization") ?? "";
@@ -154,7 +169,7 @@ export function createCodexDock(options: CodexDockOptions) {
       );
     }
 
-    return { ...workerOwner, workerToken: options.workerToken };
+    return workerOwner;
   }
 
   async function resolveRequestOwner(request: Request): Promise<CodexDockOwner> {
@@ -202,6 +217,26 @@ export function createCodexDock(options: CodexDockOptions) {
     ownerOverride?: CodexDockOwner,
   ): Promise<InvocationRecord | null> {
     return options.persistence.getInvocation(invocationId, ownerOverride ?? defaultOwner);
+  }
+
+  async function cancelInvocation(
+    invocationId: string,
+    ownerOverride?: CodexDockOwner,
+  ): Promise<InvocationRecord | null> {
+    if (!options.persistence.cancelInvocation) {
+      throw new CodexDockHttpError(
+        501,
+        makeCodexDockError(
+          "INTERNAL_ERROR",
+          "This CodexDock persistence adapter does not support cancelling invocations.",
+        ),
+      );
+    }
+
+    return options.persistence.cancelInvocation({
+      ...(ownerOverride ?? defaultOwner),
+      invocationId,
+    });
   }
 
   async function workerConnect(
@@ -510,6 +545,7 @@ export function createCodexDock(options: CodexDockOptions) {
     discovery,
     invoke,
     getInvocation,
+    cancelInvocation,
     workerConnect,
     workerNext,
     workerResult,
@@ -519,6 +555,7 @@ export function createCodexDock(options: CodexDockOptions) {
   return {
     invoke,
     getInvocation,
+    cancelInvocation,
     getWorkerStatus,
     workerConnect,
     workerNext,
@@ -529,11 +566,12 @@ export function createCodexDock(options: CodexDockOptions) {
 }
 
 export interface RouteHandlerDeps {
-  authenticateWorker(request: Request): WorkerAuthContext;
+  authenticateWorker(request: Request): WorkerAuthContext | Promise<WorkerAuthContext>;
   resolveRequestOwner(request: Request): Promise<CodexDockOwner>;
   discovery(request?: Request): DiscoveryManifest;
   invoke(input: unknown, owner: CodexDockOwner): Promise<InvokeAccepted>;
   getInvocation(invocationId: string, owner: CodexDockOwner): Promise<InvocationRecord | null>;
+  cancelInvocation(invocationId: string, owner: CodexDockOwner): Promise<InvocationRecord | null>;
   workerConnect(input: unknown, owner: CodexDockOwner): Promise<WorkerConnectResult>;
   workerNext(workerId: string, owner: CodexDockOwner): Promise<WorkerNextResponse | null>;
   workerResult(input: unknown, owner: CodexDockOwner): Promise<InvocationRecord>;
@@ -567,18 +605,40 @@ export function createRouteHandlers(deps: RouteHandlerDeps) {
       return jsonResponse({ ok: true, invocation });
     }),
 
+    cancelInvocation: async (
+      request: Request,
+      context: { params: Promise<{ invocationId: string }> } | { params: { invocationId: string } },
+    ) => withHttpErrors(async () => {
+      const owner = await deps.resolveRequestOwner(request);
+      const params = await context.params;
+      const invocation = await deps.cancelInvocation(params.invocationId, owner);
+      if (!invocation) {
+        return jsonResponse(
+          {
+            ok: false,
+            error: makeCodexDockError(
+              "INVALID_PAYLOAD",
+              "Invocation not found or cannot be cancelled.",
+            ),
+          },
+          { status: 404 },
+        );
+      }
+      return jsonResponse({ ok: true, invocation });
+    }),
+
     workerStatus: async (request: Request) => withHttpErrors(async () => {
-      const auth = deps.authenticateWorker(request);
+      const auth = await deps.authenticateWorker(request);
       return jsonResponse(await deps.getWorkerStatus(auth));
     }),
 
     workerConnect: async (request: Request) => withHttpErrors(async () => {
-      const auth = deps.authenticateWorker(request);
+      const auth = await deps.authenticateWorker(request);
       return jsonResponse(await deps.workerConnect(await readJson(request), auth));
     }),
 
     workerNext: async (request: Request) => withHttpErrors(async () => {
-      const auth = deps.authenticateWorker(request);
+      const auth = await deps.authenticateWorker(request);
       const input = await readJson(request);
       const workerId = getStringField(input, "workerId");
       const next = await deps.workerNext(workerId, auth);
@@ -587,7 +647,7 @@ export function createRouteHandlers(deps: RouteHandlerDeps) {
     }),
 
     workerResult: async (request: Request) => withHttpErrors(async () => {
-      const auth = deps.authenticateWorker(request);
+      const auth = await deps.authenticateWorker(request);
       return jsonResponse({
         ok: true,
         invocation: await deps.workerResult(await readJson(request), auth),
@@ -716,6 +776,25 @@ export function createMemoryPersistence(options: { now?: () => Date } = {}): Cod
       });
       invocations.set(nextRecord.invocationId, nextRecord);
       return nextRecord;
+    },
+
+    async cancelInvocation(input) {
+      const existing = invocations.get(input.invocationId);
+      if (
+        !existing ||
+        !sameOwner(existing, input) ||
+        (existing.status !== "pending" && existing.status !== "running")
+      ) {
+        return null;
+      }
+
+      const updated = invocationRecordSchema.parse({
+        ...existing,
+        status: "cancelled",
+        completedAt: stamp(),
+      });
+      invocations.set(updated.invocationId, updated);
+      return updated;
     },
 
     async completeInvocation(input) {

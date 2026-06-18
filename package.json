@@ -11,6 +11,9 @@
     "qa:smoke": "pnpm build && node scripts/smoke-test.mjs"
   },
   "devDependencies": {
+    "next": "^16.0.8",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
     "@types/node": "^24.10.1",
     "typescript": "^5.9.3"
   }

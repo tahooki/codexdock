@@ -6,6 +6,11 @@ The CLI connects a host web app to a local Codex runtime. It polls the host app 
 
 Building the host app side? Install [`@codexdock/sdk`](https://www.npmjs.com/package/@codexdock/sdk). The SDK exposes the route handlers, protocol schemas, and persistence interfaces that the `codexdock` CLI worker connects to.
 
+## Documentation
+
+- [CodexDock documentation](https://codexdock.tahooki.com)
+- [API docs](https://codexdock.tahooki.com/api-docs)
+
 ## Install
 
 ```bash
@@ -21,14 +26,14 @@ pnpm dlx codexdock doctor
 ## Commands
 
 ```bash
-codexdock connect <server-url> --code <pairing-code> [--owner-kind user|system] [--owner-id <id>]
+codexdock connect <server-url> --code <pairing-code>
 codexdock start [--connection <id>]
 codexdock status [--connection <id>]
 codexdock logout
 codexdock doctor
 ```
 
-`connect` reads the host app's discovery manifest when available and stores that endpoint map in `~/.codexdock/config.json`. The config can hold multiple host/owner connections; use `--connection <id>` to select one.
+`connect` reads the host app's discovery manifest when available, exchanges the pairing code for an owner-scoped worker token, and stores that endpoint map in `~/.codexdock/config.json`. Each successful `connect` becomes the default connection used by the next `codexdock start`; if a previous worker token is revoked by the host, the old worker exits instead of retrying forever. The config can hold multiple host/owner connections; use `--connection <id>` to select one.
 
 ## Local Development Worker
 
@@ -50,4 +55,4 @@ codexdock start \
 
 ## Status
 
-The current pairing flow has a development token mode. Owner-scoped connection storage, discovery, and worker polling are implemented. Production pairing approval, token hashing, secure token storage, and revoke flows are planned.
+Owner-scoped connection storage, discovery, pairing-code exchange, and worker polling are implemented. Development token mode is still available for local smoke tests. Revoke flows and richer approval UI are planned.

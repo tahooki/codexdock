@@ -4,13 +4,15 @@ CodexDock lets a web app send AI work to each user's own local Codex runtime ins
 
 The host app stores an invocation with `@codexdock/sdk`. The matching user's local `codexdock` worker connects outbound to the host app, claims that user's pending work, runs it with the Codex SDK, and submits the result back to the host app.
 
+Documentation: [codexdock.tahooki.com](https://codexdock.tahooki.com)
+
 ## Developer Note
 
 CodexDock is a bridge, not the ideal end state I hope for.
 
 The experience I want is a first-party Codex capability backed by ChatGPT/OpenAI auth: a user signs in, authorizes a host app, connects that app to their own local Codex runtime, and lets the app request text, image, file, or structured-object generation through a supported AI generation API. The host app should not need to manage ad hoc pairing codes, long-lived worker tokens, or its own local-runtime relay protocol just to let a user bring their own Codex environment.
 
-That desired shape is different from the current CodexDock MVP. CodexDock exists because the first-party version is not available yet. Until that kind of Codex-native, ChatGPT-authenticated generation flow exists, this project provides a practical approximation with explicit host routes, owner-scoped workers, and a local CLI process.
+That desired shape is different from the current CodexDock implementation. CodexDock exists because the first-party version is not available yet. Until that kind of Codex-native, ChatGPT-authenticated generation flow exists, this project provides a practical approximation with explicit host routes, owner-scoped workers, and a local CLI process.
 
 Desired first-party flow:
 
@@ -68,23 +70,23 @@ export const codexdock = createCodexDock({
   appName: "Your App",
   persistence: createMemoryPersistence(),
   defaultOwner: { ownerKind: "system", ownerId: "local-dev" },
-  workerOwner: { ownerKind: "system", ownerId: "local-dev" },
-  workerToken: process.env.CODEXDOCK_WORKER_TOKEN,
+  resolveOwner: async (request) => resolveOwnerFromSession(request),
+  resolveWorkerAuth: async (request) => resolveOwnerFromWorkerToken(request),
 });
 ```
 
 `createMemoryPersistence()` is only for local examples. Production apps should provide database-backed persistence so invocations survive deploys and restarts.
 
-`defaultOwner` is the app-facing owner used when you call `codexdock.invoke()` directly. For product routes, pass `resolveOwner(request)` so the host app derives the owner from its own session/auth layer instead of trusting the request body.
+`defaultOwner` is the app-facing owner used when you call `codexdock.invoke()` directly without a request. For product routes, pass `resolveOwner(request)` so the host app derives the owner from a trusted browser cookie, session, account, workspace, or system job instead of trusting request body ownership fields.
 
-`workerOwner` is the owner associated with the current worker token. The single environment token shown above is for local examples and smoke tests. Production apps should issue high-entropy worker tokens per owner and worker, store only token hashes, and reject worker endpoints without a valid `Authorization: Bearer <token>` header.
+`resolveWorkerAuth(request)` validates the worker bearer token and returns the owner scope attached to that token. The example app issues short-lived pairing codes, exchanges them for high-entropy worker tokens, stores only hashes, and uses Postgres when `DATABASE_URL` or `POSTGRES_URL` is available.
 
 ## User-Scoped Runtime Model
 
 CodexDock is primarily user-scoped, not service-scoped.
 
 - A user connects their own local Codex worker to the host app.
-- Invocations created by that user should be stored with an owner such as `userId`, `accountId`, or `workspaceId`.
+- Invocations created by that user should be stored with an owner such as an anonymous browser UUID, `userId`, `accountId`, or `workspaceId`.
 - A worker token should be scoped to that owner and worker.
 - `worker/next` should only return invocations for the worker's owner.
 - `worker/result` should only accept results for invocations claimed by that same owner-scoped worker.
@@ -168,13 +170,10 @@ Protect the app-facing invoke route with your normal product auth, rate limits, 
 Connect the local worker to your host app:
 
 ```bash
-codexdock connect https://your-app.example.com \
-  --owner-kind user \
-  --owner-id "$USER_ID" \
-  --token "$CODEXDOCK_WORKER_TOKEN"
+codexdock connect https://your-app.example.com --code "$PAIRING_CODE"
 ```
 
-`connect` reads `/api/codexdock/discovery` when available and stores the host's endpoint map locally. Use `--connection <id>` with `start` or `status` if you have more than one host/owner connection.
+`connect` reads `/api/codexdock/discovery` when available, exchanges the pairing code for an owner-scoped worker token, and stores the host's endpoint map locally. Each successful `connect` becomes the default connection used by the next `codexdock start`; in the example host, a new token for the same owner and worker revokes earlier tokens. Use `--connection <id>` with `start` or `status` if you have more than one host/owner connection.
 
 Start the worker:
 
@@ -284,11 +283,13 @@ CodexDock routes can use a stable base path such as `/api/codexdock`; security m
 - `generate_text`, `generate_object`, `generate_file`, and `generate_image` results are schema-validated before being stored.
 - Production worker tokens should be high entropy, stored hashed where possible, rotated, and revocable.
 
-## Current MVP Status
+## Current Status
 
 Working now:
 
 - Owner-scoped invocation and worker records in the SDK memory persistence adapter.
+- Example app Postgres persistence for invocations, workers, pairing codes, and hashed worker tokens.
+- Short-lived pairing codes exchanged by the CLI for owner-scoped worker tokens.
 - Owner-scoped `worker/next`, `worker/result`, worker status, and invocation reads.
 - `generate_text`, `generate_object`, `generate_file`, and inline/base64 `generate_image` result validation.
 - Discovery manifest handler and CLI endpoint-map storage.
@@ -296,7 +297,7 @@ Working now:
 
 Still planned:
 
-- Production pairing approval, token hashing lookup, revocation, and database persistence adapters.
+- Admin revoke flows and richer pairing approval UI.
 - Multipart or signed artifact upload for large files/images.
 - Convenience helpers such as `generateText()` and `generateObject()` on top of the current `invoke()` API.
 - Framework-specific mounting examples beyond the Next.js example app.
@@ -323,6 +324,9 @@ pnpm dev
 
 ## Documentation
 
+- [CodexDock documentation](https://codexdock.tahooki.com)
+- [API docs](https://codexdock.tahooki.com/api-docs)
+- [Architecture sequence diagrams](docs/codexdock-architecture-sequences.md)
 - [Development spec and TODO](docs/codexdock-development-spec-and-todo.md)
 - [Planning document](docs/codexdock-planning-and-development.md)
 - [Owner-scoped SDK implementation plan](docs/codexdock-owner-scoped-sdk-implementation-plan.md)

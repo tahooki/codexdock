@@ -1,6 +1,6 @@
 {
   "name": "@codexdock/sdk",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Server-side SDK and protocol schemas for routing app AI invocations to local CodexDock workers.",
   "license": "MIT",
   "type": "module",
@@ -22,7 +22,7 @@
     "url": "git+https://github.com/tahooki/codexdock.git",
     "directory": "packages/sdk"
   },
-  "homepage": "https://github.com/tahooki/codexdock#readme",
+  "homepage": "https://codexdock.tahooki.com",
   "bugs": {
     "url": "https://github.com/tahooki/codexdock/issues"
   },

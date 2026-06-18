@@ -1,118 +1,144 @@
-import { revalidatePath } from "next/cache";
-import { codexDockOwner, codexdock, persistence } from "@/lib/codexdock";
-import type { InvokeType } from "@codexdock/sdk";
+import { DocsShell } from "./components/docs-shell";
 
-export const dynamic = "force-dynamic";
+const principles = [
+  {
+    label: "Host",
+    title: "Create work",
+    body: "The app saves an owner-scoped invocation and returns a status URL.",
+  },
+  {
+    label: "Worker",
+    title: "Run locally",
+    body: "A user-owned CLI claims work outbound near the local Codex runtime.",
+  },
+  {
+    label: "Result",
+    title: "Render safely",
+    body: "Text, object, file, and image outputs return as validated envelopes.",
+  },
+] as const;
 
-async function createInvocation(formData: FormData) {
-  "use server";
+const docPages = [
+  {
+    href: "/playground",
+    label: "Playground",
+    meta: "Create a job and inspect the result.",
+  },
+  {
+    href: "/api-docs",
+    label: "API Docs",
+    meta: "Routes, inputs, and invocation types.",
+  },
+  {
+    href: "/architecture",
+    label: "Architecture",
+    meta: "Worker polling and owner scope.",
+  },
+  {
+    href: "/results",
+    label: "Results",
+    meta: "Output contracts for each type.",
+  },
+  {
+    href: "/security",
+    label: "Security",
+    meta: "Auth boundaries and production checks.",
+  },
+] as const;
 
-  const type = String(formData.get("type") ?? "generate_object") as InvokeType;
-  const prompt = String(formData.get("prompt") ?? "");
-  const parametersText = String(formData.get("parameters") ?? "{}");
-  let parameters: Record<string, unknown>;
-
-  try {
-    parameters = JSON.parse(parametersText) as Record<string, unknown>;
-  } catch {
-    parameters = {};
-  }
-
-  await codexdock.invoke({ type, prompt, parameters });
-  revalidatePath("/");
-}
-
-export default async function Home() {
-  const status = await codexdock.getWorkerStatus();
-  const invocations = persistence.listInvocations
-    ? await persistence.listInvocations(codexDockOwner)
-    : [];
-  const hasOnlineWorker = status.workers.some((worker) => worker.status === "online");
-
+export default function Home() {
   return (
-    <main className="shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">CodexDock Example</p>
-          <h1>Use local Codex as your app&apos;s AI runtime.</h1>
-        </div>
-        <div className={hasOnlineWorker ? "worker online" : "worker offline"}>
-          <span>{hasOnlineWorker ? "Worker online" : "Worker offline"}</span>
-          <strong>{status.workers.length}</strong>
-        </div>
-      </header>
-
-      <section className="grid">
-        <form action={createInvocation} className="panel form">
-          <h2>Create invocation</h2>
-          <label>
-            Type
-            <select name="type" defaultValue="generate_object">
-              <option value="generate_text">generate_text</option>
-              <option value="generate_object">generate_object</option>
-              <option value="generate_file">generate_file</option>
-              <option value="generate_image">generate_image</option>
-            </select>
-          </label>
-          <label>
-            Prompt
-            <textarea
-              name="prompt"
-              defaultValue="Create five product cards for CodexDock."
-            />
-          </label>
-          <label>
-            Parameters JSON
-            <textarea
-              name="parameters"
-              defaultValue={'{"count":5,"format":"json","usage":"example"}'}
-            />
-          </label>
-          <button type="submit">Create pending invocation</button>
-          {!hasOnlineWorker ? (
-            <p className="notice">
-              로컬 worker가 아직 연결되지 않았습니다. 다른 터미널에서{" "}
-              <code>pnpm worker</code>를 실행하면 pending invocation이 처리됩니다.
-            </p>
-          ) : null}
-        </form>
-
-        <section className="panel">
-          <div className="panelTitle">
-            <h2>Invocations</h2>
-            <span>
-              pending {status.counts.pending} / running {status.counts.running} /
-              completed {status.counts.completed}
-            </span>
+    <DocsShell currentPath="/">
+      <section className="pageHero homeHero">
+        <div className="heroCopy">
+          <p className="eyebrow">CodexDock</p>
+          <h1>Local Codex, connected to your product.</h1>
+          <p className="lead">
+            CodexDock lets a web app create AI work, while each user runs that
+            work through their own local Codex environment.
+          </p>
+          <div className="heroActions" aria-label="Primary documentation links">
+            <a href="/playground" className="buttonLink">
+              Open Playground
+            </a>
+            <a href="/api-docs" className="textLink">
+              Read the API
+            </a>
           </div>
-          <div className="list">
-            {invocations.length === 0 ? (
-              <p className="empty">아직 invocation이 없습니다.</p>
-            ) : (
-              invocations.map((invocation) => (
-                <article className="item" key={invocation.invocationId}>
-                  <div className="itemHead">
-                    <div>
-                      <strong>{invocation.type}</strong>
-                      <small>{invocation.invocationId}</small>
-                    </div>
-                    <span className={`badge ${invocation.status}`}>
-                      {invocation.status}
-                    </span>
-                  </div>
-                  <pre>
-                    {JSON.stringify(
-                      invocation.result ?? invocation.error ?? invocation.payload,
-                      null,
-                      2,
-                    )}
-                  </pre>
-                </article>
-              ))
-            )}
+        </div>
+        <div className="heroConsole" aria-label="CodexDock runtime preview">
+          <div className="consoleHeader">
+            <span>codexdock</span>
+            <strong>local worker</strong>
           </div>
-        </section>
+          <ol>
+            <li>
+              <span>01</span>
+              <strong>Host creates invocation</strong>
+            </li>
+            <li>
+              <span>02</span>
+              <strong>Worker claims owner work</strong>
+            </li>
+            <li>
+              <span>03</span>
+              <strong>Codex returns result</strong>
+            </li>
+          </ol>
+        </div>
       </section>
-    </main>
+
+      <section className="section" aria-labelledby="model-heading">
+        <div className="sectionIntro">
+          <p className="eyebrow">Runtime model</p>
+          <h2 id="model-heading">A small bridge between product UX and local AI work.</h2>
+        </div>
+        <div className="featureGrid">
+          {principles.map((item) => (
+            <article className="feature" key={item.label}>
+              <span>{item.label}</span>
+              <h3>{item.title}</h3>
+              <p>{item.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="section split" id="install" aria-labelledby="install-heading">
+        <div className="sectionIntro">
+          <p className="eyebrow">Install</p>
+          <h2 id="install-heading">SDK in the host. CLI on the local machine.</h2>
+        </div>
+        <div className="codeGrid singleColumn">
+          <div className="codeBlock">
+            <div className="codeTitle">Host web app</div>
+            <pre>
+              <code>{`pnpm add @codexdock/sdk`}</code>
+            </pre>
+          </div>
+          <div className="codeBlock">
+            <div className="codeTitle">Local worker</div>
+            <pre>
+              <code>{`pnpm add -g codexdock`}</code>
+            </pre>
+          </div>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="pages-heading">
+        <div className="sectionIntro">
+          <p className="eyebrow">Docs</p>
+          <h2 id="pages-heading">Documentation split by the way teams adopt it.</h2>
+        </div>
+        <div className="docLinkGrid">
+          {docPages.map((item) => (
+            <a className="docLinkCard" href={item.href} key={item.href}>
+              <strong>{item.label}</strong>
+              <p>{item.meta}</p>
+            </a>
+          ))}
+        </div>
+      </section>
+    </DocsShell>
   );
 }

@@ -6,6 +6,11 @@ Use this package inside a host web app. It stores invocations through a persiste
 
 Need the local worker? Install [`codexdock`](https://www.npmjs.com/package/codexdock). The CLI connects to the routes exposed by this SDK and runs pending invocations through the local Codex runtime.
 
+## Documentation
+
+- [CodexDock documentation](https://codexdock.tahooki.com)
+- [API docs](https://codexdock.tahooki.com/api-docs)
+
 ## Install
 
 ```bash
@@ -45,12 +50,11 @@ For product routes, use `resolveOwner(request)` so CodexDock uses the owner from
 export const codexdock = createCodexDock({
   appName: "Your App",
   persistence,
-  workerToken: process.env.CODEXDOCK_WORKER_TOKEN,
-  workerOwner: { ownerKind: "user", ownerId: "user_123" },
   resolveOwner: async (request) => ({
     ownerKind: "user",
-    ownerId: await requireUserId(request),
+    ownerId: await requireOwnerId(request),
   }),
+  resolveWorkerAuth: async (request) => await requireWorkerOwnerFromToken(request),
 });
 ```
 
@@ -67,12 +71,12 @@ Routes can be mounted at the host app's preferred paths. Publish `codexdock.hand
 
 ## Security
 
-`workerToken` is required by default. Worker routes reject requests that do not include `Authorization: Bearer <token>`.
+Worker authentication is required by default. Use a single `workerToken` for local examples, or `resolveWorkerAuth(request)` for production token lookup. Worker routes reject requests that do not include a valid `Authorization: Bearer <token>` header.
 
 Protect your app-facing invoke route with your own product auth, quota checks, and rate limits. CodexDock authenticates local workers, but the host app decides which users are allowed to create jobs.
 
-The current SDK supports owner-scoped memory persistence and a single configured `workerOwner` per SDK instance. Production apps should back this with token lookup that returns the token's owner scope.
+Production apps should issue high-entropy worker tokens per owner/worker, store hashes, and have `resolveWorkerAuth(request)` return the token's owner scope.
 
 ## Status
 
-The in-memory persistence adapter is intended for examples and local smoke tests. Production apps should provide their own database-backed persistence adapter. Pairing approval, token hashing, revocation, and large artifact upload helpers are planned next.
+The in-memory persistence adapter is intended for examples and local smoke tests. Production apps should provide their own database-backed persistence adapter. Revocation UI and large artifact upload helpers are planned next.

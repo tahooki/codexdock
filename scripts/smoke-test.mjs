@@ -37,8 +37,10 @@ async function waitForServer() {
 async function main() {
   try {
     await assertOwnerIsolation();
+    await assertWorkerStatusDoesNotExposeToken();
     await waitForServer();
     await assertDiscovery();
+    await assertPairingFlow();
 
     smokeWorker = runSmokeWorker().catch((error) => {
       smokeWorkerError = error;
@@ -369,6 +371,28 @@ async function expectReject(label, promise) {
   throw new Error(`${label} should have failed.`);
 }
 
+async function assertWorkerStatusDoesNotExposeToken() {
+  const dock = createCodexDock({
+    persistence: createMemoryPersistence(),
+    workerToken,
+    defaultOwner: { ownerKind: "system", ownerId: "status-owner" },
+    workerOwner: { ownerKind: "system", ownerId: "status-owner" },
+  });
+
+  const response = await dock.handlers.workerStatus(
+    new Request("http://localhost/api/codexdock/worker/status", {
+      headers: workerHeaders(),
+    }),
+  );
+  const status = await response.json();
+  if (!response.ok) {
+    throw new Error(`Worker status failed: ${JSON.stringify(status)}`);
+  }
+  if (status.owner?.workerToken) {
+    throw new Error("Worker status leaked workerToken.");
+  }
+}
+
 async function assertDiscovery() {
   const response = await fetch(`${serverUrl}/api/codexdock/discovery`);
   if (!response.ok) {
@@ -382,6 +406,117 @@ async function assertDiscovery() {
     !manifest.endpoints?.workerNext
   ) {
     throw new Error(`Unexpected discovery manifest: ${JSON.stringify(manifest)}`);
+  }
+}
+
+async function assertPairingFlow() {
+  const pairingResponse = await fetch(`${serverUrl}/api/codexdock/pairing/code`, {
+    method: "POST",
+  });
+  const pairing = await pairingResponse.json();
+  if (!pairingResponse.ok || !pairing.code || !pairing.command) {
+    throw new Error(`Pairing code failed: ${JSON.stringify(pairing)}`);
+  }
+  const cookie = ownerCookieFrom(pairingResponse.headers.get("set-cookie"));
+  if (!cookie) {
+    throw new Error("Pairing code response did not set an owner cookie.");
+  }
+
+  const exchangeResponse = await fetch(`${serverUrl}/api/codexdock/pairing/exchange`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ code: pairing.code, workerId: "paired-smoke-worker" }),
+  });
+  const exchange = await exchangeResponse.json();
+  if (
+    !exchangeResponse.ok ||
+    exchange.ownerKind !== "user" ||
+    typeof exchange.ownerId !== "string" ||
+    typeof exchange.workerToken !== "string"
+  ) {
+    throw new Error(`Pairing exchange failed: ${JSON.stringify(exchange)}`);
+  }
+
+  const duplicateExchange = await fetch(`${serverUrl}/api/codexdock/pairing/exchange`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ code: pairing.code, workerId: "paired-smoke-worker-2" }),
+  });
+  if (duplicateExchange.ok) {
+    throw new Error("Pairing code was reusable.");
+  }
+
+  const pairedHeaders = {
+    authorization: `Bearer ${exchange.workerToken}`,
+    "content-type": "application/json",
+  };
+  await fetch(`${serverUrl}/api/codexdock/worker/connect`, {
+    method: "POST",
+    headers: pairedHeaders,
+    body: JSON.stringify({
+      workerId: "paired-smoke-worker",
+      deviceName: "paired-smoke-worker",
+      capabilities: ["generate_text"],
+    }),
+  }).then(assertOk("Paired worker connect"));
+
+  const invokeResponse = await fetch(`${serverUrl}/api/codexdock/invoke`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie,
+    },
+    body: JSON.stringify({
+      type: "generate_text",
+      prompt: "Pairing flow text.",
+      parameters: { usage: "pairing-smoke" },
+    }),
+  });
+  const invoke = await invokeResponse.json();
+  if (!invokeResponse.ok || !invoke.invocationId) {
+    throw new Error(`Pairing invoke failed: ${JSON.stringify(invoke)}`);
+  }
+
+  const nextResponse = await fetch(`${serverUrl}/api/codexdock/worker/next`, {
+    method: "POST",
+    headers: pairedHeaders,
+    body: JSON.stringify({ workerId: "paired-smoke-worker" }),
+  });
+  const next = await nextResponse.json();
+  if (!nextResponse.ok || next.invocationId !== invoke.invocationId) {
+    throw new Error(`Paired worker claimed unexpected work: ${JSON.stringify(next)}`);
+  }
+
+  await fetch(`${serverUrl}/api/codexdock/worker/result`, {
+    method: "POST",
+    headers: pairedHeaders,
+    body: JSON.stringify({
+      workerId: "paired-smoke-worker",
+      invocationId: invoke.invocationId,
+      ok: true,
+      result: {
+        kind: "text",
+        text: "paired owner result",
+        provider: "codexdock",
+        model: "local-codex",
+      },
+    }),
+  }).then(assertOk("Paired worker result"));
+
+  const ownedStatusResponse = await fetch(`${serverUrl}${invoke.statusUrl}`, {
+    headers: { cookie },
+  });
+  const ownedStatus = await ownedStatusResponse.json();
+  if (ownedStatus.invocation?.result?.text !== "paired owner result") {
+    throw new Error(`Paired owner status failed: ${JSON.stringify(ownedStatus)}`);
+  }
+
+  const unownedStatusResponse = await fetch(`${serverUrl}${invoke.statusUrl}`);
+  if (unownedStatusResponse.ok) {
+    const unownedStatus = await unownedStatusResponse.json();
+    if (unownedStatus.invocation) {
+      throw new Error(`Invocation leaked without owner cookie: ${JSON.stringify(unownedStatus)}`);
+    }
   }
 }
 
@@ -453,6 +588,21 @@ async function workerPostJson(path, body) {
     throw new Error(await response.text());
   }
   return response.json();
+}
+
+function assertOk(label) {
+  return async (response) => {
+    if (!response.ok) {
+      throw new Error(`${label} failed: ${await response.text()}`);
+    }
+    return response;
+  };
+}
+
+function ownerCookieFrom(setCookie) {
+  if (!setCookie) return "";
+  const match = /codexdock_owner_id=[^;]+/.exec(setCookie);
+  return match?.[0] ?? "";
 }
 
 function buildSmokeResult(invocation) {
@@ -556,6 +706,9 @@ async function waitForWorker() {
     });
     if (response.ok) {
       const status = await response.json();
+      if (status.owner?.workerToken) {
+        throw new Error("Worker status leaked workerToken.");
+      }
       if (status.workers?.length > 0) return;
     }
     await sleep(500);

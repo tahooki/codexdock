@@ -17,6 +17,7 @@ type EndpointKey =
   | "workerConnect"
   | "workerNext"
   | "workerResult"
+  | "pairingExchange"
   | "artifactUpload"
   | "artifactPrepare";
 
@@ -81,42 +82,86 @@ async function connectCommand(args: string[]) {
   }
 
   const options = parseFlags(args.slice(1));
-  const ownerKind = parseOwnerKind(
-    options["owner-kind"] ?? process.env.CODEXDOCK_OWNER_KIND ?? "system",
-  );
-  const ownerId = options["owner-id"] ?? process.env.CODEXDOCK_OWNER_ID ?? "local-dev";
-  const workerId = options["worker-id"] ?? process.env.CODEXDOCK_WORKER_ID ?? "local-dev-worker";
-  const workerToken =
-    options.token ??
-    process.env.CODEXDOCK_WORKER_TOKEN ??
-    (options.code ? "dev-worker-token" : undefined);
-
-  if (!workerToken) {
-    throw new Error("Missing worker token. For dev, set CODEXDOCK_WORKER_TOKEN or pass --token.");
-  }
-
   const normalizedServerUrl = normalizeUrl(serverUrl);
   const discovered =
     options["skip-discovery"] === "true"
       ? null
       : await discoverHost(normalizedServerUrl, options["discovery-url"]);
+  const workerId = options["worker-id"] ?? process.env.CODEXDOCK_WORKER_ID ?? "local-dev-worker";
+  const pairingCode = options.code ?? process.env.CODEXDOCK_PAIRING_CODE;
+  const explicitWorkerToken = options.token;
+  const envWorkerToken = process.env.CODEXDOCK_WORKER_TOKEN;
+  const exchanged = explicitWorkerToken
+    ? null
+    : pairingCode
+      ? await exchangePairingCode(normalizedServerUrl, discovered?.endpoints, pairingCode, workerId)
+      : null;
+  const ownerKind = exchanged?.ownerKind ?? parseOwnerKind(
+    options["owner-kind"] ?? process.env.CODEXDOCK_OWNER_KIND ?? "system",
+  );
+  const ownerId = exchanged?.ownerId ?? options["owner-id"] ?? process.env.CODEXDOCK_OWNER_ID ?? "local-dev";
+  const resolvedWorkerId = exchanged?.workerId ?? workerId;
+  const workerToken = explicitWorkerToken ?? exchanged?.workerToken ?? (!pairingCode ? envWorkerToken : undefined);
+
+  if (!workerToken) {
+    throw new Error("Missing worker token. Pass --code <pairing-code>, set CODEXDOCK_WORKER_TOKEN, or pass --token.");
+  }
+
   const connection: LocalWorkerConnection = {
     connectionId:
       options["connection-id"] ??
-      defaultConnectionId(normalizedServerUrl, ownerKind, ownerId, workerId),
+      defaultConnectionId(normalizedServerUrl, ownerKind, ownerId, resolvedWorkerId),
     appName: discovered?.appName,
     serverUrl: normalizedServerUrl,
     ownerKind,
     ownerId,
-    workerId,
+    workerId: resolvedWorkerId,
     workerToken,
     endpoints: discovered?.endpoints,
   };
 
   await saveConnection(connection);
-  console.log(`Connected ${workerId} to ${normalizedServerUrl}`);
+  console.log(`Connected ${resolvedWorkerId} to ${normalizedServerUrl}`);
   console.log(`owner: ${ownerKind}:${ownerId}`);
   if (connection.appName) console.log(`app: ${connection.appName}`);
+}
+
+async function exchangePairingCode(
+  serverUrl: string,
+  endpoints: EndpointMap | undefined,
+  code: string,
+  workerId: string,
+): Promise<CodexDockOwner & { workerToken: string; workerId?: string }> {
+  const endpoint = endpoints?.pairingExchange
+    ? new URL(endpoints.pairingExchange)
+    : new URL("/api/codexdock/pairing/exchange", serverUrl);
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ code, workerId }),
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | (Partial<CodexDockOwner> & { workerToken?: unknown; workerId?: unknown; error?: unknown })
+    | null;
+
+  if (!response.ok) {
+    throw new Error(`Pairing failed: ${JSON.stringify(payload)}`);
+  }
+  if (
+    !payload ||
+    typeof payload.workerToken !== "string" ||
+    typeof payload.ownerId !== "string" ||
+    (payload.ownerKind !== "user" && payload.ownerKind !== "system")
+  ) {
+    throw new Error(`Invalid pairing response: ${JSON.stringify(payload)}`);
+  }
+
+  return {
+    ownerKind: payload.ownerKind,
+    ownerId: payload.ownerId,
+    workerId: typeof payload.workerId === "string" ? payload.workerId : workerId,
+    workerToken: payload.workerToken,
+  };
 }
 
 async function startCommand(args: string[]) {
@@ -190,7 +235,11 @@ async function startCommand(args: string[]) {
         console.error(`failed ${invocation.invocationId}:`, error instanceof Error ? error.message : error);
       }
     } catch (error) {
-      console.error("worker loop error:", error instanceof Error ? error.message : error);
+      console.error("worker loop error:", errorMessage(error));
+      if (isFatalWorkerAuthError(error)) {
+        console.error("worker stopped: this connection is no longer authorized. Run codexdock connect again, then start a new worker.");
+        return;
+      }
       await sleep(withJitter(5_000));
     }
   }
@@ -225,7 +274,7 @@ async function nextInvocation(config: CliConfig): Promise<WorkerNextResponse | n
 
   if (response.status === 204) return null;
   if (!response.ok) {
-    throw new Error(await response.text());
+    throw await CliHttpError.fromResponse(response);
   }
   return (await response.json()) as WorkerNextResponse;
 }
@@ -235,7 +284,7 @@ async function getJson<T>(config: CliConfig, endpoint: EndpointKey, path: string
     headers: headers(config),
   });
   if (!response.ok) {
-    throw new Error(await response.text());
+    throw await CliHttpError.fromResponse(response);
   }
   return (await response.json()) as T;
 }
@@ -252,9 +301,37 @@ async function postJson<T>(
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(await response.text());
+    throw await CliHttpError.fromResponse(response);
   }
   return (await response.json()) as T;
+}
+
+class CliHttpError extends Error {
+  private constructor(
+    public readonly status: number,
+    public readonly body: string,
+  ) {
+    super(body);
+  }
+
+  static async fromResponse(response: Response): Promise<CliHttpError> {
+    return new CliHttpError(response.status, await response.text());
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isFatalWorkerAuthError(error: unknown): boolean {
+  if (!(error instanceof CliHttpError)) return false;
+  if (error.status !== 401 && error.status !== 403) return false;
+  return (
+    error.body.includes('"code": "WORKER_AUTH_INVALID"') ||
+    error.body.includes('"code":"WORKER_AUTH_INVALID"') ||
+    error.body.includes('"code": "WORKER_REVOKED"') ||
+    error.body.includes('"code":"WORKER_REVOKED"')
+  );
 }
 
 function headers(config: CliConfig) {
@@ -297,6 +374,7 @@ function endpointsFromManifest(manifest: DiscoveryManifest): EndpointMap {
     workerConnect: manifest.endpoints.workerConnect,
     workerNext: manifest.endpoints.workerNext,
     workerResult: manifest.endpoints.workerResult,
+    pairingExchange: manifest.endpoints.pairingExchange,
     artifactUpload: manifest.endpoints.artifactUpload,
     artifactPrepare: manifest.endpoints.artifactPrepare,
   };
@@ -330,7 +408,15 @@ async function loadConfigWithEnv(connectionId?: string): Promise<CliConfig> {
   const ownerKind = parseOwnerKind(process.env.CODEXDOCK_OWNER_KIND ?? "system");
   const ownerId = process.env.CODEXDOCK_OWNER_ID ?? "local-dev";
 
-  if (serverUrl && workerToken) {
+  const config = await readConfigFile();
+  const selectedId = connectionId ?? process.env.CODEXDOCK_CONNECTION_ID ?? config.defaultConnectionId;
+  const selected = selectedId ? config.connections.find((item) => item.connectionId === selectedId) : undefined;
+  if (selected) return selected;
+  if (connectionId || process.env.CODEXDOCK_CONNECTION_ID) {
+    throw new Error(`CodexDock connection not found: ${selectedId}`);
+  }
+
+  if (!config.defaultConnectionId && serverUrl && workerToken) {
     const normalizedServerUrl = normalizeUrl(serverUrl);
     return {
       connectionId:
@@ -344,13 +430,7 @@ async function loadConfigWithEnv(connectionId?: string): Promise<CliConfig> {
     };
   }
 
-  const config = await readConfigFile();
-  const selectedId = connectionId ?? process.env.CODEXDOCK_CONNECTION_ID ?? config.defaultConnectionId;
-  const selected = config.connections.find((item) => item.connectionId === selectedId);
-  if (!selected) {
-    throw new Error(`CodexDock connection not found: ${selectedId}`);
-  }
-  return selected;
+  throw new Error(`CodexDock connection not found: ${selectedId}`);
 }
 
 async function readConfigFile(): Promise<CliConfigFile> {

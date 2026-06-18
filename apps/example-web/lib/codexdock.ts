@@ -1,4 +1,10 @@
-import { createCodexDock, createMemoryPersistence } from "@codexdock/sdk";
+import { createCodexDock, createMemoryPersistence, type CodexDockPersistence } from "@codexdock/sdk";
+import { authenticateWorkerToken } from "./connection-store";
+import { ownerFromRequest } from "./owner";
+import {
+  createPostgresPersistence,
+  hasDatabaseConnection,
+} from "./postgres-persistence";
 
 export const codexDockOwner = {
   ownerKind: process.env.CODEXDOCK_OWNER_KIND === "user" ? "user" : "system",
@@ -6,13 +12,13 @@ export const codexDockOwner = {
 } as const;
 
 const globalForCodexDock = globalThis as unknown as {
-  codexDockPersistence?: ReturnType<typeof createMemoryPersistence>;
+  codexDockPersistence?: CodexDockPersistence;
   codexDock?: ReturnType<typeof createCodexDock>;
 };
 
 export const persistence =
   globalForCodexDock.codexDockPersistence ??
-  createMemoryPersistence();
+  (hasDatabaseConnection() ? createPostgresPersistence() : createMemoryPersistence());
 
 globalForCodexDock.codexDockPersistence = persistence;
 
@@ -22,8 +28,8 @@ export const codexdock =
     persistence,
     appName: "CodexDock Example Web",
     defaultOwner: codexDockOwner,
-    workerOwner: codexDockOwner,
-    workerToken: process.env.CODEXDOCK_WORKER_TOKEN ?? "dev-worker-token",
+    resolveOwner: ownerFromRequest,
+    resolveWorkerAuth: authenticateWorkerToken,
   });
 
 globalForCodexDock.codexDock = codexdock;
