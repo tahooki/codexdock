@@ -4,6 +4,8 @@ Local CLI worker for CodexDock.
 
 The CLI connects a host web app to a local Codex runtime. It polls the host app for pending invocations, runs them with its built-in Codex SDK adapter, and submits results back to the app.
 
+Building the host app side? Install [`@codexdock/sdk`](https://www.npmjs.com/package/@codexdock/sdk). The SDK exposes the route handlers, protocol schemas, and persistence interfaces that the `codexdock` CLI worker connects to.
+
 ## Install
 
 ```bash

@@ -4,6 +4,8 @@ Server-side SDK and protocol schemas for routing app AI invocations to local Cod
 
 Use this package inside a host web app. It stores invocations through a persistence adapter, exposes route-handler helpers, exports shared protocol types and Zod schemas, and lets local workers claim work and submit results.
 
+Need the local worker? Install [`codexdock`](https://www.npmjs.com/package/codexdock). The CLI connects to the routes exposed by this SDK and runs pending invocations through the local Codex runtime.
+
 ## Install
 
 ```bash
