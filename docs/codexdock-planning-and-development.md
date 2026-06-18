@@ -102,9 +102,7 @@ codexdock/
     web/                 # Vercel 배포용 Next.js 앱
   packages/
     cli/                 # codexdock CLI
-    sdk/                 # 웹서버에 설치하는 CodexDock SDK
-    protocol/            # shared schema/types
-    codex-adapter/       # Codex SDK 연결 계층
+    sdk/                 # 웹서버 SDK와 shared schema/types
   docs/
     codexdock-planning-and-development.md
 ```
@@ -113,10 +111,7 @@ codexdock/
 
 ```text
 codexdock
-@codexdock/cli
 @codexdock/sdk
-@codexdock/protocol
-@codexdock/codex-adapter
 ```
 
 ## 6. 핵심 플로우

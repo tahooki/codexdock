@@ -1,6 +1,6 @@
 {
   "name": "codexdock",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "CLI worker that connects host apps to a local Codex runtime.",
   "license": "MIT",
   "type": "module",
@@ -38,8 +38,8 @@
     "worker": "tsx src/index.ts start"
   },
   "dependencies": {
-    "@codexdock/codex-adapter": "workspace:*",
-    "@codexdock/protocol": "workspace:*"
+    "@codexdock/sdk": "workspace:*",
+    "@openai/codex-sdk": "^0.140.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

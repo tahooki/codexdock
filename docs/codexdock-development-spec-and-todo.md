@@ -126,16 +126,14 @@ codexdock/
   packages/
     sdk/
     cli/
-    protocol/
-    codex-adapter/
   docs/
 ```
 
-### `packages/protocol`
+### SDK protocol schemas
 
 역할:
 
-- SDK, CLI, adapter가 공유하는 타입과 schema를 제공한다.
+- `packages/sdk`가 SDK API와 함께 공유 타입/schema를 제공한다.
 - runtime validation은 `zod`를 기본으로 한다.
 
 주요 타입:
@@ -329,11 +327,11 @@ Polling 정책:
 - jitter를 적용해 worker들이 동시에 몰리지 않게 한다.
 - 작업을 처리하면 delay를 초기화한다.
 
-### `packages/codex-adapter`
+### CLI Codex adapter
 
 역할:
 
-- Codex SDK 실행을 감싼다.
+- `packages/cli` 내부에서 Codex SDK 실행을 감싼다.
 - real SDK adapter를 기본으로 제공하고, smoke/example용 internal smoke-test worker를 별도로 제공한다.
 - SDK 결과를 CodexDock result payload로 정규화한다.
 
@@ -667,10 +665,8 @@ packages/cli
 - [x] pnpm workspace 생성
 - [x] TypeScript 설정
 - [x] build/check/smoke 명령 추가
-- [x] `packages/protocol` 생성
 - [x] `packages/sdk` 생성
 - [x] `packages/cli` 생성
-- [x] `packages/codex-adapter` 생성
 - [x] `apps/example-web` 생성
 
 ### Phase 2: Protocol 구현

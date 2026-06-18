@@ -6,13 +6,11 @@
 
 ## 1. 배포 대상
 
-현재 npm에 올릴 대상은 `packages/` 아래 네 개 패키지다.
+현재 npm에 올릴 대상은 `packages/` 아래 두 개 패키지다.
 
 | 패키지 | npm name | 역할 | 배포 여부 |
 | --- | --- | --- | --- |
-| `packages/protocol` | `@codexdock/protocol` | SDK/CLI 공통 protocol, zod schema | 배포 |
-| `packages/sdk` | `@codexdock/sdk` | host web app용 server-side SDK | 배포 |
-| `packages/codex-adapter` | `@codexdock/codex-adapter` | Codex SDK adapter | 배포 |
+| `packages/sdk` | `@codexdock/sdk` | host web app용 server-side SDK와 protocol schema | 배포 |
 | `packages/cli` | `codexdock` | local worker CLI | 배포 |
 
 배포하지 않는 대상:
@@ -27,11 +25,10 @@
 
 - GitHub repo: `https://github.com/tahooki/codexdock`
 - npm CLI는 `tahooki` 계정으로 로그인됨: `npm whoami`가 `tahooki` 반환
-- npm registry에는 아래 package가 배포되어 있음:
+- npm registry에는 아래 active package가 배포되어 있음:
   - `codexdock`
   - `@codexdock/sdk`
-  - `@codexdock/protocol`
-  - `@codexdock/codex-adapter`
+- 이전 구조의 `@codexdock/protocol`, `@codexdock/codex-adapter` package는 더 이상 새 version을 publish하지 않는다.
 - 이전 배포는 browser/passkey 인증을 사용하는 tarball publish 방식으로 성공함
 
 첫 배포 전에는 scoped package의 `E404`가 "아직 패키지가 없다"는 뜻일 수 있지만, `@codexdock` scope 자체를 내가 소유하거나 접근 가능한지는 별도로 확인해야 한다. 이미 한 번 publish가 성공한 뒤에는 `npm view <package> versions`와 `npm dist-tag ls <package>`로 현재 published version과 `latest` tag를 확인한다.
@@ -42,13 +39,13 @@
 
 권장안:
 
-- SDK 계열은 `@codexdock/*` scope로 유지
+- SDK는 `@codexdock/sdk` scope로 유지
 - CLI는 짧게 `codexdock` 유지
 
 필요 조건:
 
 - npm에서 `codexdock` organization 또는 scope를 소유해야 한다.
-- scope를 만들 수 없다면 `@tahooki/codexdock-sdk`, `@tahooki/codexdock-protocol`처럼 소유 가능한 scope로 바꾼다.
+- scope를 만들 수 없다면 `@tahooki/codexdock-sdk`처럼 소유 가능한 scope로 바꾼다.
 
 ### public 배포
 
@@ -105,9 +102,7 @@ pnpm -r --filter "./packages/*" publish --access public --tag beta
 
 패키지별 설명 예시:
 
-- `@codexdock/protocol`: `Shared protocol types and runtime schemas for CodexDock.`
-- `@codexdock/sdk`: `Server-side SDK for routing app AI invocations to local CodexDock workers.`
-- `@codexdock/codex-adapter`: `Codex SDK adapter layer for CodexDock workers.`
+- `@codexdock/sdk`: `Server-side SDK and protocol schemas for routing app AI invocations to local CodexDock workers.`
 - `codexdock`: `CLI worker that connects host apps to a local Codex runtime.`
 
 중요:
@@ -160,9 +155,7 @@ npm access ls-packages @codexdock
 
 ```bash
 npm view codexdock version
-npm view @codexdock/protocol version
 npm view @codexdock/sdk version
-npm view @codexdock/codex-adapter version
 ```
 
 `E404`면 아직 배포된 package가 없다는 뜻이다. 권한이 있는 scope라면 첫 publish가 가능하다.
@@ -236,7 +229,7 @@ done
 확인할 것:
 
 - 모든 package version이 배포하려는 version인가
-- `@codexdock/*` workspace dependency가 실제 version으로 변환되었는가
+- `codexdock` tarball 안의 `@codexdock/sdk` workspace dependency가 실제 version으로 변환되었는가
 - CLI tarball에 `bin.codexdock`가 있는가
 
 ### 6.1 Browser/passkey 인증으로 publish
@@ -245,14 +238,6 @@ done
 
 ```bash
 VERSION="$(node -p 'require("./packages/cli/package.json").version')"
-
-npm publish "/tmp/codexdock-npm-pack/codexdock-protocol-${VERSION}.tgz" \
-  --access public \
-  --auth-type=web
-
-npm publish "/tmp/codexdock-npm-pack/codexdock-codex-adapter-${VERSION}.tgz" \
-  --access public \
-  --auth-type=web
 
 npm publish "/tmp/codexdock-npm-pack/codexdock-sdk-${VERSION}.tgz" \
   --access public \
@@ -283,7 +268,7 @@ printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$tmp_npmrc"
 
 VERSION="$(node -p 'require("./packages/cli/package.json").version')"
 
-npm publish "/tmp/codexdock-npm-pack/codexdock-protocol-${VERSION}.tgz" \
+npm publish "/tmp/codexdock-npm-pack/codexdock-sdk-${VERSION}.tgz" \
   --access public \
   --userconfig "$tmp_npmrc"
 
@@ -310,7 +295,7 @@ pnpm -r --filter "./packages/*" publish --access public --tag beta --dry-run
 pnpm -r --filter "./packages/*" publish --access public --tag beta
 ```
 
-수동으로 하나씩 배포해야 한다면 dependency 순서를 지킨다: `@codexdock/protocol` -> `@codexdock/codex-adapter` -> `@codexdock/sdk` -> `codexdock`.
+수동으로 하나씩 배포해야 한다면 dependency 순서를 지킨다: `@codexdock/sdk` -> `codexdock`.
 
 ## 7. 배포 후 검증
 
@@ -329,8 +314,6 @@ package metadata 확인:
 ```bash
 npm view codexdock version
 npm view @codexdock/sdk version
-npm view @codexdock/protocol version
-npm view @codexdock/codex-adapter version
 ```
 
 CLI 실행 확인:
@@ -398,7 +381,7 @@ jobs:
 - [x] `pnpm -r --filter "./packages/*" publish --dry-run --access public --no-git-checks` 실행
 - [x] browser/passkey 인증으로 이전 publish 완료
 - [x] consumer 실행 확인은 `pnpm dlx codexdock@<version> doctor`로 수행
-- [x] 다음 배포용 package version bump
-- [x] 현재 version tarball publish 완료
+- [x] package version은 publish 전 bump한다
+- [x] publish 후 registry와 consumer smoke로 검증한다
 - [ ] token 기반 publish를 사용할 경우 token 권한과 2FA bypass 설정 검증
 - [ ] GitHub Actions 자동 배포를 붙일 경우 `NPM_TOKEN` secret으로 dry run 후 적용

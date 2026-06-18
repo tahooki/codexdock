@@ -1,7 +1,7 @@
 {
   "name": "@codexdock/sdk",
-  "version": "0.1.2",
-  "description": "Server-side SDK for routing app AI invocations to local CodexDock workers.",
+  "version": "0.2.0",
+  "description": "Server-side SDK and protocol schemas for routing app AI invocations to local CodexDock workers.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -34,7 +34,7 @@
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@codexdock/protocol": "workspace:*"
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

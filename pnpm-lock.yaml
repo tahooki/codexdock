@@ -17,9 +17,6 @@ importers:
 
   apps/example-web:
     dependencies:
-      '@codexdock/protocol':
-        specifier: workspace:*
-        version: link:../../packages/protocol
       '@codexdock/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
@@ -48,12 +45,12 @@ importers:
 
   packages/cli:
     dependencies:
-      '@codexdock/codex-adapter':
+      '@codexdock/sdk':
         specifier: workspace:*
-        version: link:../codex-adapter
-      '@codexdock/protocol':
-        specifier: workspace:*
-        version: link:../protocol
+        version: link:../sdk
+      '@openai/codex-sdk':
+        specifier: ^0.140.0
+        version: 0.140.0
     devDependencies:
       '@types/node':
         specifier: ^24.10.1
@@ -65,34 +62,11 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/codex-adapter:
-    dependencies:
-      '@codexdock/protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@openai/codex-sdk':
-        specifier: ^0.140.0
-        version: 0.140.0
-    devDependencies:
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  packages/protocol:
+  packages/sdk:
     dependencies:
       zod:
         specifier: ^4.1.13
         version: 4.4.3
-    devDependencies:
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  packages/sdk:
-    dependencies:
-      '@codexdock/protocol':
-        specifier: workspace:*
-        version: link:../protocol
     devDependencies:
       '@types/node':
         specifier: ^24.10.1

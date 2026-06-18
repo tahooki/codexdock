@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { codexDockOwner, codexdock, persistence } from "@/lib/codexdock";
-import type { InvokeType } from "@codexdock/protocol";
+import type { InvokeType } from "@codexdock/sdk";
 
 export const dynamic = "force-dynamic";
 

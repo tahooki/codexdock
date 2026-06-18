@@ -1,8 +1,8 @@
 # @codexdock/sdk
 
-Server-side SDK for routing app AI invocations to local CodexDock workers.
+Server-side SDK and protocol schemas for routing app AI invocations to local CodexDock workers.
 
-Use this package inside a host web app. It stores invocations through a persistence adapter, exposes route-handler helpers, and lets local workers claim work and submit results.
+Use this package inside a host web app. It stores invocations through a persistence adapter, exposes route-handler helpers, exports shared protocol types and Zod schemas, and lets local workers claim work and submit results.
 
 ## Install
 

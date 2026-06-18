@@ -1,4 +1,6 @@
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
+export * from "./protocol.js";
+
 import type {
   CodexDockError,
   CodexDockOwner,
@@ -9,7 +11,7 @@ import type {
   NormalizedWorkerConnectRequest,
   WorkerNextResponse,
   WorkerRecord,
-} from "@codexdock/protocol";
+} from "./protocol.js";
 import {
   codexDockErrorSchema,
   discoveryManifestSchema,
@@ -26,7 +28,7 @@ import {
   workerRecordSchema,
   workerNextResponseSchema,
   workerResultRequestSchema,
-} from "@codexdock/protocol";
+} from "./protocol.js";
 
 export interface CodexDockPersistence {
   createInvocation(input: CreateInvocationInput): Promise<InvocationRecord>;

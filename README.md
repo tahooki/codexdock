@@ -274,10 +274,8 @@ Still planned:
 
 ## Packages
 
-- `@codexdock/sdk`: server-side SDK for host web apps
+- `@codexdock/sdk`: server-side SDK, shared protocol types, and Zod schemas for host web apps
 - `codexdock`: local CLI worker
-- `@codexdock/protocol`: shared protocol types and Zod schemas
-- `@codexdock/codex-adapter`: Codex SDK adapter and shared worker interfaces
 
 ## Development
 

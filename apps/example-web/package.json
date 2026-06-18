@@ -9,7 +9,6 @@
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@codexdock/protocol": "workspace:*",
     "@codexdock/sdk": "workspace:*",
     "next": "^16.0.8",
     "react": "^19.2.1",

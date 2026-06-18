@@ -2,12 +2,12 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { createAdapter, MemoryEventSink } from "@codexdock/codex-adapter";
-import type { CodexDockOwner, DiscoveryManifest, WorkerNextResponse } from "@codexdock/protocol";
+import { createAdapter, MemoryEventSink } from "./adapter.js";
+import type { CodexDockOwner, DiscoveryManifest, WorkerNextResponse } from "@codexdock/sdk";
 import {
   discoveryManifestSchema,
   makeCodexDockError,
-} from "@codexdock/protocol";
+} from "@codexdock/sdk";
 
 type EndpointKey =
   | "discovery"

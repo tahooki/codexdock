@@ -5,7 +5,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@codexdock/sdk", "@codexdock/protocol"],
+  transpilePackages: ["@codexdock/sdk"],
   turbopack: {
     root,
   },

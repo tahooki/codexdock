@@ -2,7 +2,7 @@
 
 Local CLI worker for CodexDock.
 
-The CLI connects a host web app to a local Codex runtime. It polls the host app for pending invocations, runs them with the Codex SDK adapter, and submits results back to the app.
+The CLI connects a host web app to a local Codex runtime. It polls the host app for pending invocations, runs them with its built-in Codex SDK adapter, and submits results back to the app.
 
 ## Install
 

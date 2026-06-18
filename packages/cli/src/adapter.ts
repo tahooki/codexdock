@@ -1,11 +1,11 @@
-import type { CodexDockError, CodexEvent, JsonObject, JsonValue } from "@codexdock/protocol";
+import type { CodexDockError, CodexEvent, JsonObject, JsonValue } from "@codexdock/sdk";
 import {
   generatedFileResultSchema,
   generatedImageResultSchema,
   generatedObjectResultSchema,
   generatedTextResultSchema,
   makeCodexDockError,
-} from "@codexdock/protocol";
+} from "@codexdock/sdk";
 
 export interface CodexInvokeInput {
   invocationId: string;

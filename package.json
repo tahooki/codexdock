@@ -5,9 +5,9 @@
   "packageManager": "pnpm@10.24.0",
   "scripts": {
     "build": "pnpm -r --sort build",
-    "check": "pnpm --filter @codexdock/protocol build && pnpm --filter @codexdock/sdk build && pnpm --filter @codexdock/codex-adapter build && pnpm -r --sort check",
-    "dev": "pnpm --filter @codexdock/protocol build && pnpm --filter @codexdock/sdk build && pnpm --filter @codexdock/example-web dev",
-    "worker": "pnpm --filter @codexdock/protocol build && pnpm --filter @codexdock/codex-adapter build && pnpm --filter codexdock worker",
+    "check": "pnpm --filter @codexdock/sdk build && pnpm -r --sort check",
+    "dev": "pnpm --filter @codexdock/sdk build && pnpm --filter @codexdock/example-web dev",
+    "worker": "pnpm --filter @codexdock/sdk build && pnpm --filter codexdock worker",
     "qa:smoke": "pnpm build && node scripts/smoke-test.mjs"
   },
   "devDependencies": {
