@@ -11,6 +11,7 @@ import {
   type CompleteInvocationInput,
   type FailInvocationInput,
   type InvocationRecord,
+  type JsonValue,
   type WorkerRecord,
   type WorkerStatusResult,
   withInvocationProgress,
@@ -104,11 +105,11 @@ export function createPostgresPersistence(): CodexDockPersistence {
           ${invocation.workerId ?? null},
           ${invocation.type},
           ${invocation.prompt},
-          ${JSON.stringify(invocation.payload)}::jsonb,
-          ${JSON.stringify(invocation.requiredCapabilities)}::jsonb,
+          ${sql.json(invocation.payload)}::jsonb,
+          ${sql.json(invocation.requiredCapabilities)}::jsonb,
           ${invocation.status},
-          ${jsonOrNull(invocation.result)}::jsonb,
-          ${jsonOrNull(invocation.error)}::jsonb,
+          ${jsonOrNull(sql, invocation.result)}::jsonb,
+          ${jsonOrNull(sql, invocation.error)}::jsonb,
           ${invocation.attempts},
           ${invocation.idempotencyKey ?? null},
           ${invocation.createdAt},
@@ -147,14 +148,15 @@ export function createPostgresPersistence(): CodexDockPersistence {
     async claimNextInvocation(input) {
       await ensureCodexDockSchema();
       await assertWorkerIsNotRevoked(input, input.workerId);
-      const rows = asRows(await getSql()`
+      const sql = getSql();
+      const rows = asRows(await sql`
         WITH next_invocation AS (
           SELECT invocation_id
           FROM codexdock_invocations
           WHERE status = 'pending'
             AND owner_kind = ${input.ownerKind}
             AND owner_id = ${input.ownerId}
-            AND ${JSON.stringify(input.capabilities)}::jsonb @> required_capabilities
+            AND ${sql.json(input.capabilities)}::jsonb @> required_capabilities
           ORDER BY created_at ASC
           LIMIT 1
         )
@@ -208,7 +210,8 @@ export function createPostgresPersistence(): CodexDockPersistence {
 
     async upsertWorker(input) {
       await ensureCodexDockSchema();
-      const rows = asRows(await getSql()`
+      const sql = getSql();
+      const rows = asRows(await sql`
         INSERT INTO codexdock_workers (
           owner_kind,
           owner_id,
@@ -225,7 +228,7 @@ export function createPostgresPersistence(): CodexDockPersistence {
           ${input.ownerId},
           ${input.workerId},
           ${input.deviceName},
-          ${JSON.stringify(input.capabilities)}::jsonb,
+          ${sql.json(input.capabilities)}::jsonb,
           ${input.status ?? "online"},
           NOW(),
           NOW(),
@@ -479,6 +482,7 @@ async function createSchema() {
     CREATE INDEX IF NOT EXISTS codexdock_worker_tokens_owner_idx
     ON codexdock_worker_tokens (owner_kind, owner_id, worker_id)
   `;
+  await normalizeLegacyJsonbStrings(sql);
 }
 
 async function assertWorkerIsNotRevoked(owner: CodexDockOwner, workerId: string) {
@@ -501,11 +505,12 @@ async function updateClaimedInvocation(
   input: CompleteInvocationInput | FailInvocationInput,
   update: { status: "completed" | "failed"; result: unknown; error: unknown },
 ) {
-  return asRows(await getSql()`
+  const sql = getSql();
+  return asRows(await sql`
     UPDATE codexdock_invocations
     SET status = ${update.status},
-      result = ${jsonOrNull(update.result)}::jsonb,
-      error = ${jsonOrNull(update.error)}::jsonb,
+      result = ${jsonOrNull(sql, update.result)}::jsonb,
+      error = ${jsonOrNull(sql, update.error)}::jsonb,
       completed_at = NOW()
     WHERE invocation_id = ${input.invocationId}
       AND owner_kind = ${input.ownerKind}
@@ -524,11 +529,11 @@ function invocationFromRow(row: Row): InvocationRecord {
     workerId: row.worker_id ?? undefined,
     type: row.type,
     prompt: row.prompt,
-    payload: row.payload ?? {},
-    requiredCapabilities: row.required_capabilities ?? [],
+    payload: jsonObjectValue(row.payload),
+    requiredCapabilities: stringArrayValue(row.required_capabilities),
     status: row.status,
-    result: row.result ?? undefined,
-    error: row.error ?? undefined,
+    result: optionalJsonValue(row.result),
+    error: optionalJsonValue(row.error),
     attempts: row.attempts,
     idempotencyKey: row.idempotency_key ?? undefined,
     createdAt: isoString(row.created_at),
@@ -544,7 +549,7 @@ function workerFromRow(row: Row): WorkerRecord {
     ownerId: row.owner_id,
     workerId: row.worker_id,
     deviceName: row.device_name,
-    capabilities: row.capabilities ?? [],
+    capabilities: stringArrayValue(row.capabilities),
     status: row.status,
     lastSeenAt: isoString(row.last_seen_at),
     createdAt: isoString(row.created_at),
@@ -589,8 +594,78 @@ function shouldUseSsl(url: string) {
   }
 }
 
-function jsonOrNull(value: unknown) {
-  return value === undefined || value === null ? null : JSON.stringify(value);
+async function normalizeLegacyJsonbStrings(sql: Sql) {
+  await sql`
+    UPDATE codexdock_invocations
+    SET
+      payload = CASE
+        WHEN jsonb_typeof(payload) = 'string'
+          AND left(ltrim(payload #>> '{}'), 1) IN ('{', '[')
+          THEN (payload #>> '{}')::jsonb
+        ELSE payload
+      END,
+      required_capabilities = CASE
+        WHEN jsonb_typeof(required_capabilities) = 'string'
+          AND left(ltrim(required_capabilities #>> '{}'), 1) = '['
+          THEN (required_capabilities #>> '{}')::jsonb
+        ELSE required_capabilities
+      END,
+      result = CASE
+        WHEN result IS NOT NULL
+          AND jsonb_typeof(result) = 'string'
+          AND left(ltrim(result #>> '{}'), 1) IN ('{', '[')
+          THEN (result #>> '{}')::jsonb
+        ELSE result
+      END,
+      error = CASE
+        WHEN error IS NOT NULL
+          AND jsonb_typeof(error) = 'string'
+          AND left(ltrim(error #>> '{}'), 1) = '{'
+          THEN (error #>> '{}')::jsonb
+        ELSE error
+      END
+    WHERE jsonb_typeof(payload) = 'string'
+      OR jsonb_typeof(required_capabilities) = 'string'
+      OR jsonb_typeof(result) = 'string'
+      OR jsonb_typeof(error) = 'string'
+  `;
+  await sql`
+    UPDATE codexdock_workers
+    SET capabilities = (capabilities #>> '{}')::jsonb
+    WHERE jsonb_typeof(capabilities) = 'string'
+      AND left(ltrim(capabilities #>> '{}'), 1) = '['
+  `;
+}
+
+function jsonOrNull(sql: Sql, value: unknown) {
+  return value === undefined || value === null ? null : sql.json(value as JsonValue);
+}
+
+function jsonObjectValue(value: unknown) {
+  const parsed = rowJsonValue(value);
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+}
+
+function stringArrayValue(value: unknown) {
+  const parsed = rowJsonValue(value);
+  return Array.isArray(parsed)
+    ? parsed.filter((item): item is string => typeof item === "string" && item.length > 0)
+    : [];
+}
+
+function optionalJsonValue(value: unknown) {
+  if (value === null || value === undefined) return undefined;
+  return rowJsonValue(value);
+}
+
+function rowJsonValue(value: unknown) {
+  if (typeof value !== "string") return value;
+
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
 }
 
 function isoString(value: unknown) {
