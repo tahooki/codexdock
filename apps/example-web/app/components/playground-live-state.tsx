@@ -14,6 +14,7 @@ import type {
   InvocationRecord,
   WorkerStatusResult,
 } from "@codexdock/sdk";
+import { trackGoogleAnalyticsEvent } from "./google-analytics-events";
 
 interface PlaygroundState {
   status: WorkerStatusResult;
@@ -366,6 +367,11 @@ function InvocationItem({
 
   async function cancelInvocation() {
     setIsCancelling(true);
+    trackGoogleAnalyticsEvent("playground_cancel_invocation_click", {
+      click_target: "cancel_invocation",
+      invocation_status: invocation.status,
+      invocation_type: invocation.type,
+    });
     try {
       const response = await fetch(`/api/codexdock/invocations/${invocation.invocationId}`, {
         method: "DELETE",
@@ -377,6 +383,9 @@ function InvocationItem({
         };
         if (payload.ok && payload.invocation) {
           onUpdateInvocation(payload.invocation);
+          trackGoogleAnalyticsEvent("playground_cancel_invocation_submitted", {
+            invocation_type: invocation.type,
+          });
           return;
         }
       }

@@ -146,7 +146,14 @@ codexdock start --skip-git-repo-check`;
           <div className="commandBlock">
             <div className="codeTitle commandHeader">
               <span>Worker terminal</span>
-              <CopyButton value={workerCommand} />
+              <CopyButton
+                analyticsEventName="playground_copy_worker_command"
+                analyticsEventParams={{
+                  click_target: "worker_command_copy",
+                  playground_section: "connect",
+                }}
+                value={workerCommand}
+              />
             </div>
             <pre>
               <code>{workerCommand}</code>
@@ -163,7 +170,8 @@ codexdock start --skip-git-repo-check`;
             <p className="eyebrow">Create</p>
             <h2 id="create-heading">Send work to the connected Codex worker.</h2>
             <p>
-              Presets, invocation settings, and live results share one workspace.
+              Pick one quick generation test, press Create, then watch the worker
+              queue change in real time.
             </p>
           </div>
           <div className="playgroundWorkspace">

@@ -909,6 +909,17 @@ td code,
   margin: 0;
 }
 
+.testHint {
+  margin: -4px 0 2px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-tint);
+  color: var(--muted);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
 .playgroundForm label {
   display: grid;
   gap: 7px;

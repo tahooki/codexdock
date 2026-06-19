@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import type { InvokeType, JsonObject } from "@codexdock/sdk";
+import { trackGoogleAnalyticsEvent } from "./google-analytics-events";
 import { usePlaygroundRefresh } from "./playground-live-state";
 
 export interface PlaygroundPreset {
@@ -27,8 +28,20 @@ export function PlaygroundCreatePanel({
   const refreshPlayground = usePlaygroundRefresh();
   const [, formAction, isCreating] = useActionState(
     async (submitCount: number, formData: FormData) => {
+      const submittedType = String(formData.get("type") ?? selectedType);
+      const submittedPrompt = String(formData.get("prompt") ?? "");
+      trackGoogleAnalyticsEvent("playground_create_invocation_click", {
+        click_target: "create_invocation",
+        invocation_type: submittedType,
+        prompt_length: submittedPrompt.trim().length,
+        selected_preset: selectedPreset.title,
+      });
       await createInvocation(formData);
       await refreshPlayground();
+      trackGoogleAnalyticsEvent("playground_create_invocation_submitted", {
+        invocation_type: submittedType,
+        selected_preset: selectedPreset.title,
+      });
       return submitCount + 1;
     },
     0,
@@ -43,6 +56,12 @@ export function PlaygroundCreatePanel({
     setSelectedType(preset.type);
     setPrompt(preset.prompt);
     setParameters(stringifyParameters(preset.parameters));
+    trackGoogleAnalyticsEvent("playground_select_preset_click", {
+      click_target: "preset_button",
+      invocation_type: preset.type,
+      preset_label: preset.label,
+      preset_title: preset.title,
+    });
   }
 
   return (
@@ -83,12 +102,23 @@ export function PlaygroundCreatePanel({
           </div>
           <CreateSubmitButton isCreating={isCreating} />
         </div>
+        <p className="testHint">
+          Curious how generation feels? The Text preset is the fastest smoke
+          test; connect a worker and use Create to send one real job through.
+        </p>
         <input name="type" type="hidden" value={selectedType} />
         <label>
           <span>Type</span>
           <select
             key={selectedType}
-            onChange={(event) => setSelectedType(event.target.value as InvokeType)}
+            onChange={(event) => {
+              const nextType = event.target.value as InvokeType;
+              setSelectedType(nextType);
+              trackGoogleAnalyticsEvent("playground_change_invocation_type", {
+                click_target: "type_select",
+                invocation_type: nextType,
+              });
+            }}
             value={selectedType}
           >
             <option value="generate_text">generate_text</option>

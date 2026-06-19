@@ -1,12 +1,30 @@
 "use client";
 
 import { useState } from "react";
+import {
+  trackGoogleAnalyticsEvent,
+  type GoogleAnalyticsEventParams,
+} from "./google-analytics-events";
 
-export function CopyButton({ value }: { value: string }) {
+export function CopyButton({
+  analyticsEventName,
+  analyticsEventParams,
+  value,
+}: {
+  analyticsEventName?: string;
+  analyticsEventParams?: GoogleAnalyticsEventParams;
+  value: string;
+}) {
   const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
 
   async function copyValue() {
     const copied = await copyText(value);
+    if (analyticsEventName) {
+      trackGoogleAnalyticsEvent(analyticsEventName, {
+        ...analyticsEventParams,
+        copy_result: copied ? "success" : "failed",
+      });
+    }
     setStatus(copied ? "copied" : "failed");
     window.setTimeout(() => setStatus("idle"), 1600);
   }
