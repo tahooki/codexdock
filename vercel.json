@@ -1,5 +1,6 @@
 {
   "framework": "nextjs",
+  "ignoreCommand": "node scripts/vercel-ignore-build.mjs",
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --filter @codexdock/sdk build && pnpm --filter @codexdock/example-web build",
   "outputDirectory": "apps/example-web/.next"
