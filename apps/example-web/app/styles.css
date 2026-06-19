@@ -959,6 +959,109 @@ td code,
   padding: 22px;
 }
 
+.progressSteps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.progressStep {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 11px 12px;
+}
+
+.progressStep::after {
+  content: "";
+  position: absolute;
+  top: 20px;
+  left: 100%;
+  width: 10px;
+  height: 2px;
+  background: var(--line-strong);
+}
+
+.progressStep:last-child::after {
+  display: none;
+}
+
+.progressDot {
+  width: 12px;
+  height: 12px;
+  display: block;
+  margin-top: 3px;
+  border: 2px solid var(--line-strong);
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.progressCopy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.progressCopy strong {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.progressCopy span,
+.progressCopy time {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.progressCopy span {
+  overflow-wrap: anywhere;
+}
+
+.progressCopy time {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.progressStep.complete .progressDot {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.progressStep.current {
+  border-color: #fed7aa;
+  background: var(--amber-soft);
+}
+
+.progressStep.current .progressDot {
+  border-color: var(--amber);
+  background: var(--amber);
+}
+
+.progressStep.error {
+  border-color: #fecaca;
+  background: var(--red-soft);
+}
+
+.progressStep.error .progressDot {
+  border-color: var(--red);
+  background: var(--red);
+}
+
+.progressStep.cancelled .progressDot {
+  border-color: var(--muted);
+  background: var(--muted);
+}
+
 .textResult {
   display: grid;
   gap: 12px;
@@ -1149,6 +1252,18 @@ td code,
 
   .statusPill {
     min-height: 44px;
+  }
+
+  .progressSteps {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .progressStep::after {
+    top: 31px;
+    left: 20px;
+    width: 2px;
+    height: 8px;
   }
 
   .formHeader {

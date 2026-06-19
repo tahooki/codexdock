@@ -70,7 +70,15 @@ export default function ApiDocsPage() {
 // {
 //   invocationId: "inv_123",
 //   status: "pending",
-//   statusUrl: "/api/codexdock/invocations/inv_123"
+//   statusUrl: "/api/codexdock/invocations/inv_123",
+//   progress: {
+//     phase: "queued",
+//     steps: [
+//       { key: "received", status: "complete" },
+//       { key: "processing", status: "pending" },
+//       { key: "result", status: "pending" }
+//     ]
+//   }
 // }`}</code>
           </pre>
         </div>

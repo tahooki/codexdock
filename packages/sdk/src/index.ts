@@ -5,6 +5,7 @@ import type {
   CodexDockError,
   CodexDockOwner,
   DiscoveryManifest,
+  InvocationProgress,
   InvocationRecord,
   JsonObject,
   NormalizedInvokeRequest,
@@ -24,6 +25,8 @@ import {
   invokeTypes,
   makeCodexDockError,
   ownerSchema,
+  buildInvocationProgress,
+  withInvocationProgress,
   workerConnectRequestSchema,
   workerRecordSchema,
   workerNextResponseSchema,
@@ -99,6 +102,7 @@ export interface InvokeAccepted {
   invocationId: string;
   status: "pending";
   statusUrl: string;
+  progress: InvocationProgress;
 }
 
 export interface WorkerConnectResult {
@@ -209,6 +213,7 @@ export function createCodexDock(options: CodexDockOptions) {
       invocationId: record.invocationId,
       status: "pending",
       statusUrl: `${endpointBasePath}/invocations/${record.invocationId}`,
+      progress: buildInvocationProgress(record),
     };
   }
 
@@ -216,7 +221,11 @@ export function createCodexDock(options: CodexDockOptions) {
     invocationId: string,
     ownerOverride?: CodexDockOwner,
   ): Promise<InvocationRecord | null> {
-    return options.persistence.getInvocation(invocationId, ownerOverride ?? defaultOwner);
+    const invocation = await options.persistence.getInvocation(
+      invocationId,
+      ownerOverride ?? defaultOwner,
+    );
+    return invocation ? withInvocationProgress(invocation) : null;
   }
 
   async function cancelInvocation(
@@ -233,10 +242,11 @@ export function createCodexDock(options: CodexDockOptions) {
       );
     }
 
-    return options.persistence.cancelInvocation({
+    const invocation = await options.persistence.cancelInvocation({
       ...(ownerOverride ?? defaultOwner),
       invocationId,
     });
+    return invocation ? withInvocationProgress(invocation) : null;
   }
 
   async function workerConnect(
@@ -328,22 +338,24 @@ export function createCodexDock(options: CodexDockOptions) {
     if (parsed.data.ok) {
       const result = validateCompletedResult(invocation, parsed.data.result ?? null);
 
-      return options.persistence.completeInvocation({
+      const completed = await options.persistence.completeInvocation({
         ...owner,
         workerId: parsed.data.workerId,
         invocationId: parsed.data.invocationId,
         result,
       });
+      return withInvocationProgress(completed);
     }
 
-    return options.persistence.failInvocation({
+    const failed = await options.persistence.failInvocation({
       ...owner,
       workerId: parsed.data.workerId,
       invocationId: parsed.data.invocationId,
       error:
         parsed.data.error ??
-        makeCodexDockError("CODEX_RUN_FAILED", "Worker failed without details."),
+          makeCodexDockError("CODEX_RUN_FAILED", "Worker failed without details."),
     });
+    return withInvocationProgress(failed);
   }
 
   async function getWorkerStatus(ownerOverride?: CodexDockOwner): Promise<WorkerStatusResult> {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { codexdock, persistence } from "@/lib/codexdock";
 import { ownerFromRequest } from "@/lib/owner";
+import { withInvocationProgress } from "@codexdock/sdk";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,8 @@ export async function GET(request: Request) {
   return NextResponse.json({
     ok: true,
     status,
-    invocations: invocations.filter((invocation) => invocation.status !== "cancelled"),
+    invocations: invocations
+      .filter((invocation) => invocation.status !== "cancelled")
+      .map((invocation) => withInvocationProgress(invocation)),
   });
 }

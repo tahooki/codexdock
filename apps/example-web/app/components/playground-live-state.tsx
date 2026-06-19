@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { InvocationRecord, WorkerStatusResult } from "@codexdock/sdk";
+import type {
+  InvocationProgressStep,
+  InvocationRecord,
+  WorkerStatusResult,
+} from "@codexdock/sdk";
 
 interface PlaygroundState {
   status: WorkerStatusResult;
@@ -168,9 +172,107 @@ function InvocationItem({
         {invocation.workerId ? <span>Worker {invocation.workerId}</span> : null}
       </div>
       <p className="promptLine">{invocation.prompt}</p>
+      <InvocationProgressSteps invocation={invocation} />
       <ResultPreview invocation={invocation} />
     </article>
   );
+}
+
+function InvocationProgressSteps({ invocation }: { invocation: InvocationRecord }) {
+  const progress = invocation.progress;
+  if (!progress) return null;
+
+  return (
+    <ol
+      aria-label="Invocation progress"
+      className={`progressSteps phase-${progress.phase}`}
+    >
+      {progress.steps.map((step) => {
+        const copy = progressStepCopy(step);
+
+        return (
+          <li
+            aria-current={step.status === "current" ? "step" : undefined}
+            className={`progressStep ${step.status}`}
+            key={step.key}
+          >
+            <span aria-hidden="true" className="progressDot" />
+            <span className="progressCopy">
+              <strong>{copy.label}</strong>
+              <span>{copy.description}</span>
+              {step.at ? (
+                <time dateTime={step.at}>{formatStepTime(step.at)}</time>
+              ) : null}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function progressStepCopy(step: InvocationProgressStep) {
+  if (step.key === "received") {
+    return {
+      label: "Received",
+      description: "Request saved.",
+    };
+  }
+
+  if (step.key === "processing") {
+    if (step.status === "current") {
+      return {
+        label: "Processing",
+        description: `${step.workerId ?? "Worker"} is running it.`,
+      };
+    }
+
+    if (step.status === "complete") {
+      return {
+        label: "Processed",
+        description: "Worker finished the run.",
+      };
+    }
+
+    return {
+      label: "Queued",
+      description: "Waiting for a worker.",
+    };
+  }
+
+  if (step.status === "complete") {
+    return {
+      label: "Completed",
+      description: "Result is ready.",
+    };
+  }
+
+  if (step.status === "error") {
+    return {
+      label: "Error occurred",
+      description: step.error?.message ?? "The worker returned an error.",
+    };
+  }
+
+  if (step.status === "cancelled") {
+    return {
+      label: "Cancelled",
+      description: "Invocation was cancelled.",
+    };
+  }
+
+  return {
+    label: "Result pending",
+    description: "Waiting for completion.",
+  };
+}
+
+function formatStepTime(value: string) {
+  return new Date(value).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
 function ResultPreview({ invocation }: { invocation: InvocationRecord }) {

@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { codexdock, persistence } from "@/lib/codexdock";
 import { createPairingCode } from "@/lib/connection-store";
 import { getBrowserOwner } from "@/lib/owner";
-import type { InvokeType, JsonObject } from "@codexdock/sdk";
+import { withInvocationProgress, type InvokeType, type JsonObject } from "@codexdock/sdk";
 import { CopyButton } from "../components/copy-button";
 import { DocsShell } from "../components/docs-shell";
 import {
@@ -113,7 +113,7 @@ export default async function PlaygroundPage() {
     : [];
   const visibleInvocations = invocations.filter(
     (invocation) => invocation.status !== "cancelled",
-  );
+  ).map((invocation) => withInvocationProgress(invocation));
   const currentHostUrl = hostUrl();
   const pairing = await createPairingCode(owner);
   const workerCommand = `codexdock connect ${currentHostUrl} --code ${pairing.code}

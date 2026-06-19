@@ -40,9 +40,12 @@ const invocation = await codexdock.invoke({
 });
 
 console.log(invocation.invocationId);
+console.log(invocation.progress.phase);
 ```
 
 `parameters` is stored with the invocation and echoed into completed results. `payload` is still accepted as a compatibility alias.
+
+`invoke()`, `getInvocation()`, and worker result responses include a derived `progress` snapshot with `received`, `processing`, and `result` steps. Use `progress.phase` for broad states such as `queued`, `processing`, `completed`, and `failed`, and use each step's `status` to render a compact progress UI.
 
 For product routes, use `resolveOwner(request)` so CodexDock uses the owner from your app's session or auth context:
 

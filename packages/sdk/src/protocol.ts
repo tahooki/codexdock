@@ -9,6 +9,29 @@ export const invocationStatuses = [
   "cancelled",
 ] as const;
 
+export const invocationProgressPhases = [
+  "queued",
+  "processing",
+  "completed",
+  "failed",
+  "cancelled",
+  "expired",
+] as const;
+
+export const invocationProgressStepKeys = [
+  "received",
+  "processing",
+  "result",
+] as const;
+
+export const invocationProgressStepStatuses = [
+  "pending",
+  "current",
+  "complete",
+  "error",
+  "cancelled",
+] as const;
+
 export const workerStatuses = ["online", "offline", "revoked"] as const;
 export const ownerKinds = ["user", "system"] as const;
 
@@ -33,6 +56,9 @@ export const codexDockErrorCodes = [
 ] as const;
 
 export type InvocationStatus = (typeof invocationStatuses)[number];
+export type InvocationProgressPhase = (typeof invocationProgressPhases)[number];
+export type InvocationProgressStepKey = (typeof invocationProgressStepKeys)[number];
+export type InvocationProgressStepStatus = (typeof invocationProgressStepStatuses)[number];
 export type WorkerStatus = (typeof workerStatuses)[number];
 export type OwnerKind = (typeof ownerKinds)[number];
 export type InvokeType = (typeof invokeTypes)[number];
@@ -148,6 +174,23 @@ export const codexDockErrorSchema = z.object({
 
 export type CodexDockError = z.infer<typeof codexDockErrorSchema>;
 
+export const invocationProgressStepSchema = z.object({
+  key: z.enum(invocationProgressStepKeys),
+  status: z.enum(invocationProgressStepStatuses),
+  at: z.string().optional(),
+  workerId: z.string().min(1).optional(),
+  error: codexDockErrorSchema.optional(),
+});
+
+export type InvocationProgressStep = z.infer<typeof invocationProgressStepSchema>;
+
+export const invocationProgressSchema = z.object({
+  phase: z.enum(invocationProgressPhases),
+  steps: z.array(invocationProgressStepSchema),
+});
+
+export type InvocationProgress = z.infer<typeof invocationProgressSchema>;
+
 export const invokeRequestSchema = z
   .object({
     ownerKind: z.enum(ownerKinds).optional(),
@@ -194,9 +237,69 @@ export const invocationRecordSchema = z.object({
   claimedAt: z.string().optional(),
   completedAt: z.string().optional(),
   expiresAt: z.string().optional(),
+  progress: invocationProgressSchema.optional(),
 });
 
 export type InvocationRecord = z.output<typeof invocationRecordSchema>;
+
+export function buildInvocationProgress(invocation: InvocationRecord): InvocationProgress {
+  const phase = invocationPhase(invocation.status);
+  const terminalAt = invocation.completedAt;
+  const processingStatus =
+    invocation.status === "pending"
+      ? "pending"
+      : invocation.status === "running"
+        ? "current"
+        : invocation.claimedAt
+          ? "complete"
+          : "pending";
+  const resultStatus =
+    invocation.status === "completed"
+      ? "complete"
+      : invocation.status === "failed" || invocation.status === "expired"
+        ? "error"
+        : invocation.status === "cancelled"
+          ? "cancelled"
+          : "pending";
+
+  return invocationProgressSchema.parse({
+    phase,
+    steps: [
+      {
+        key: "received",
+        status: "complete",
+        at: invocation.createdAt,
+      },
+      {
+        key: "processing",
+        status: processingStatus,
+        at: invocation.claimedAt,
+        workerId: invocation.workerId,
+      },
+      {
+        key: "result",
+        status: resultStatus,
+        at: terminalAt,
+        error: invocation.status === "failed" ? invocation.error : undefined,
+      },
+    ],
+  });
+}
+
+export function withInvocationProgress<T extends InvocationRecord>(
+  invocation: T,
+): T & { progress: InvocationProgress } {
+  return {
+    ...invocation,
+    progress: buildInvocationProgress(invocation),
+  };
+}
+
+function invocationPhase(status: InvocationStatus): InvocationProgressPhase {
+  if (status === "pending") return "queued";
+  if (status === "running") return "processing";
+  return status;
+}
 
 export const workerRecordSchema = z.object({
   workerId: z.string().min(1),

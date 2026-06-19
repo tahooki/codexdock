@@ -157,11 +157,19 @@ await codexdock.invoke({
 {
   "invocationId": "inv_123",
   "status": "pending",
-  "statusUrl": "/api/codexdock/invocations/inv_123"
+  "statusUrl": "/api/codexdock/invocations/inv_123",
+  "progress": {
+    "phase": "queued",
+    "steps": [
+      { "key": "received", "status": "complete" },
+      { "key": "processing", "status": "pending" },
+      { "key": "result", "status": "pending" }
+    ]
+  }
 }
 ```
 
-Poll `statusUrl` or use your own app's job UI to show progress and results.
+Poll `statusUrl` or use your own app's job UI to show progress and results. Invocation reads include the same derived `progress` snapshot with `received`, `processing`, and `result` steps, so a host app can render queued, running, completed, failed, expired, or cancelled work without inventing a separate UI state machine.
 
 Protect the app-facing invoke route with your normal product auth, rate limits, and quota checks. CodexDock authenticates worker traffic, but it does not know which of your users are allowed to create AI jobs.
 

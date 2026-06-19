@@ -1,6 +1,6 @@
 {
   "name": "@codexdock/sdk",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Server-side SDK and protocol schemas for routing app AI invocations to local CodexDock workers.",
   "license": "MIT",
   "type": "module",
