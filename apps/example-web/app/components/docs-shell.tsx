@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
+import cliPackage from "../../../../packages/cli/package.json";
 import { navItems } from "../docs-data";
+
+const codexDockVersion = cliPackage.version;
 
 export function DocsShell({
   children,
@@ -34,12 +37,17 @@ export function DocsShell({
 
       <aside className="sidebar">
         <a className="brandBlock" href="/">
-          <span className="brandMark" aria-hidden="true">
-            CD
-          </span>
+          <img
+            alt=""
+            aria-hidden="true"
+            className="brandIcon"
+            height="40"
+            src="/codexdock-icon.png"
+            width="40"
+          />
           <span className="brandText">
             <strong>CodexDock</strong>
-            <small>Documentation</small>
+            <small>Documentation · v{codexDockVersion}</small>
           </span>
         </a>
         <nav className="sidebarNav" aria-label="Documentation pages">
@@ -57,7 +65,8 @@ export function DocsShell({
             );
           })}
         </nav>
-        <div className="sidebarMeta" aria-label="CodexDock surfaces">
+        <div className="sidebarMeta" aria-label="CodexDock version and surfaces">
+          <span className="versionPill">Latest v{codexDockVersion}</span>
           <span>SDK</span>
           <span>CLI</span>
           <span>Worker</span>
@@ -67,6 +76,7 @@ export function DocsShell({
       <main className="contentShell">
         {children}
         <footer className="docsFooter">
+          <span>CodexDock v{codexDockVersion}</span>
           <span>Made by</span>
           <a href="https://github.com/tahooki">tahooki</a>
         </footer>
