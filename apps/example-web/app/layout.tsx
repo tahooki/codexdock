@@ -1,6 +1,21 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import Script from "next/script";
+import { Suspense, type ReactNode } from "react";
+import { GoogleAnalyticsPageView } from "./components/google-analytics-page-view";
 import "./styles.css";
+
+const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim();
+const gaScriptSrc = gaMeasurementId
+  ? `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaMeasurementId)}`
+  : undefined;
+const gaInitScript = gaMeasurementId
+  ? `
+window.dataLayer = window.dataLayer || [];
+function gtag(){window.dataLayer.push(arguments);}
+gtag("js", new Date());
+gtag("config", ${JSON.stringify(gaMeasurementId)}, { send_page_view: false });
+`
+  : "";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://codexdock.tahooki.com"),
@@ -53,7 +68,20 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body>
+        {children}
+        {gaScriptSrc && gaMeasurementId ? (
+          <>
+            <Script src={gaScriptSrc} strategy="afterInteractive" />
+            <Script id="ga4-init" strategy="afterInteractive">
+              {gaInitScript}
+            </Script>
+            <Suspense fallback={null}>
+              <GoogleAnalyticsPageView measurementId={gaMeasurementId} />
+            </Suspense>
+          </>
+        ) : null}
+      </body>
     </html>
   );
 }
