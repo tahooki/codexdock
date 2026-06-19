@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import type {
   InvocationProgressStep,
   InvocationRecord,
@@ -15,6 +23,23 @@ interface PlaygroundState {
 interface PlaygroundStateResponse extends PlaygroundState {
   ok: boolean;
 }
+
+interface PlaygroundActiveStateResponse {
+  invocations: InvocationRecord[];
+  ok: boolean;
+}
+
+interface PlaygroundStatusResponse {
+  ok: boolean;
+  status: WorkerStatusResult;
+}
+
+interface PlaygroundStateContextValue extends PlaygroundState {
+  refresh: () => Promise<void>;
+  updateInvocation: (invocation: InvocationRecord) => void;
+}
+
+const PlaygroundStateContext = createContext<PlaygroundStateContextValue | null>(null);
 
 const dateTimeFormatter = new Intl.DateTimeFormat("ko-KR", {
   day: "numeric",
@@ -33,8 +58,28 @@ const timeFormatter = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
 });
 
-export function PlaygroundStatusStrip({ initialState }: { initialState: PlaygroundState }) {
+export function PlaygroundLiveStateProvider({
+  children,
+  initialState,
+}: {
+  children: ReactNode;
+  initialState: PlaygroundState;
+}) {
   const state = usePlaygroundState(initialState);
+
+  return (
+    <PlaygroundStateContext.Provider value={state}>
+      {children}
+    </PlaygroundStateContext.Provider>
+  );
+}
+
+export function usePlaygroundRefresh() {
+  return useContext(PlaygroundStateContext)?.refresh ?? noopRefresh;
+}
+
+export function PlaygroundStatusStrip() {
+  const state = useRequiredPlaygroundState();
   const onlineWorkers = state.status.workers.filter((worker) => worker.status === "online");
 
   return (
@@ -44,29 +89,33 @@ export function PlaygroundStatusStrip({ initialState }: { initialState: Playgrou
 
 export function PlaygroundInvocationQueue({
   embedded = false,
-  initialState,
 }: {
   embedded?: boolean;
-  initialState: PlaygroundState;
 }) {
-  const state = usePlaygroundState(initialState);
+  const state = useRequiredPlaygroundState();
 
   return (
     <InvocationQueue
       embedded={embedded}
       invocations={state.invocations}
       onRefresh={state.refresh}
+      onUpdateInvocation={state.updateInvocation}
     />
   );
 }
 
 function usePlaygroundState(initialState: PlaygroundState) {
   const [state, setState] = useState(initialState);
-  const hasActiveInvocations = state.invocations.some((invocation) =>
-    canCancelInvocation(invocation),
+  const activeInvocationIds = useMemo(
+    () =>
+      state.invocations
+        .filter((invocation) => canCancelInvocation(invocation))
+        .map((invocation) => invocation.invocationId),
+    [state.invocations],
   );
+  const activeInvocationKey = activeInvocationIds.join("|");
 
-  async function refreshState() {
+  const refreshState = useCallback(async () => {
     const response = await fetch("/api/codexdock/playground/state", {
       cache: "no-store",
     });
@@ -79,20 +128,144 @@ function usePlaygroundState(initialState: PlaygroundState) {
         invocations: payload.invocations,
       });
     }
-  }
+  }, []);
+
+  const refreshStatus = useCallback(async () => {
+    const response = await fetch("/api/codexdock/playground/status", {
+      cache: "no-store",
+    });
+    if (!response.ok) return;
+
+    const payload = (await response.json()) as PlaygroundStatusResponse;
+    if (payload.ok) {
+      setState((current) => ({
+        ...current,
+        status: payload.status,
+      }));
+    }
+  }, []);
+
+  const updateInvocations = useCallback((updatedInvocations: InvocationRecord[]) => {
+    if (updatedInvocations.length === 0) return;
+
+    setState((current) => ({
+      invocations: mergeInvocationUpdates(current.invocations, updatedInvocations),
+      status: {
+        ...current.status,
+        counts: countsWithInvocationUpdates(
+          current.status.counts,
+          current.invocations,
+          updatedInvocations,
+        ),
+      },
+    }));
+  }, []);
+
+  const refreshActiveState = useCallback(async (invocationIds: string[]) => {
+    if (invocationIds.length === 0) return;
+
+    const response = await fetch("/api/codexdock/playground/active", {
+      body: JSON.stringify({ invocationIds }),
+      cache: "no-store",
+      headers: {
+        "content-type": "application/json",
+      },
+      method: "POST",
+    });
+    if (!response.ok) return;
+
+    const payload = (await response.json()) as PlaygroundActiveStateResponse;
+    if (!payload.ok) return;
+
+    updateInvocations(payload.invocations);
+  }, [updateInvocations]);
 
   useEffect(() => {
-    const intervalMs = hasActiveInvocations ? 1_000 : 2_500;
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") {
-        void refreshState();
+        void refreshStatus();
       }
-    }, intervalMs);
+    }, 10_000);
 
     return () => window.clearInterval(timer);
-  }, [hasActiveInvocations]);
+  }, [refreshStatus]);
 
-  return { ...state, refresh: refreshState };
+  useEffect(() => {
+    if (!activeInvocationKey) return;
+
+    const invocationIds = activeInvocationKey.split("|");
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void refreshActiveState(invocationIds);
+      }
+    }, 1_000);
+
+    return () => window.clearInterval(timer);
+  }, [activeInvocationKey, refreshActiveState]);
+
+  useEffect(() => {
+    if (activeInvocationKey) {
+      void refreshActiveState(activeInvocationKey.split("|"));
+    }
+  }, [activeInvocationKey, refreshActiveState]);
+
+  return useMemo(
+    () => ({
+      ...state,
+      refresh: refreshState,
+      updateInvocation: (invocation: InvocationRecord) => updateInvocations([invocation]),
+    }),
+    [refreshState, state, updateInvocations],
+  );
+}
+
+function useRequiredPlaygroundState() {
+  const state = useContext(PlaygroundStateContext);
+  if (!state) {
+    throw new Error("Playground live state components must be rendered inside PlaygroundLiveStateProvider.");
+  }
+  return state;
+}
+
+function mergeInvocationUpdates(
+  currentInvocations: InvocationRecord[],
+  updatedInvocations: InvocationRecord[],
+) {
+  if (updatedInvocations.length === 0) return currentInvocations;
+  const updates = new Map(
+    updatedInvocations.map((invocation) => [invocation.invocationId, invocation]),
+  );
+
+  return currentInvocations
+    .map((invocation) => updates.get(invocation.invocationId) ?? invocation)
+    .filter((invocation) => invocation.status !== "cancelled");
+}
+
+function countsWithInvocationUpdates(
+  currentCounts: WorkerStatusResult["counts"],
+  currentInvocations: InvocationRecord[],
+  updatedInvocations: InvocationRecord[],
+) {
+  const counts = { ...currentCounts };
+  const currentById = new Map(
+    currentInvocations.map((invocation) => [invocation.invocationId, invocation]),
+  );
+
+  for (const invocation of updatedInvocations) {
+    const previousStatus = currentById.get(invocation.invocationId)?.status;
+    if (previousStatus && previousStatus in counts) {
+      counts[previousStatus] = Math.max(0, counts[previousStatus] - 1);
+    }
+    if (invocation.status in counts) {
+      counts[invocation.status] += 1;
+    }
+  }
+
+  return counts;
+}
+
+async function noopRefresh() {
+  return undefined;
 }
 
 function StatusStrip({
@@ -128,10 +301,12 @@ function InvocationQueue({
   embedded,
   invocations,
   onRefresh,
+  onUpdateInvocation,
 }: {
   embedded: boolean;
   invocations: InvocationRecord[];
   onRefresh: () => Promise<void>;
+  onUpdateInvocation: (invocation: InvocationRecord) => void;
 }) {
   const content = (
     <>
@@ -151,6 +326,7 @@ function InvocationQueue({
               invocation={invocation}
               key={invocation.invocationId}
               onRefresh={onRefresh}
+              onUpdateInvocation={onUpdateInvocation}
             />
           ))
         )}
@@ -180,18 +356,30 @@ function InvocationQueue({
 function InvocationItem({
   invocation,
   onRefresh,
+  onUpdateInvocation,
 }: {
   invocation: InvocationRecord;
   onRefresh: () => Promise<void>;
+  onUpdateInvocation: (invocation: InvocationRecord) => void;
 }) {
   const [isCancelling, setIsCancelling] = useState(false);
 
   async function cancelInvocation() {
     setIsCancelling(true);
     try {
-      await fetch(`/api/codexdock/invocations/${invocation.invocationId}`, {
+      const response = await fetch(`/api/codexdock/invocations/${invocation.invocationId}`, {
         method: "DELETE",
       });
+      if (response.ok) {
+        const payload = (await response.json()) as {
+          invocation?: InvocationRecord;
+          ok: boolean;
+        };
+        if (payload.ok && payload.invocation) {
+          onUpdateInvocation(payload.invocation);
+          return;
+        }
+      }
       await onRefresh();
     } finally {
       setIsCancelling(false);

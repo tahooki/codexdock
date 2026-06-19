@@ -2,6 +2,10 @@ import { revalidatePath } from "next/cache";
 import { codexdock, persistence } from "@/lib/codexdock";
 import { createPairingCode } from "@/lib/connection-store";
 import { getBrowserOwner } from "@/lib/owner";
+import {
+  getPostgresPlaygroundState,
+  hasDatabaseConnection,
+} from "@/lib/postgres-persistence";
 import { withInvocationProgress, type InvokeType, type JsonObject } from "@codexdock/sdk";
 import {
   PlaygroundCreatePanel,
@@ -11,6 +15,7 @@ import { CopyButton } from "../components/copy-button";
 import { DocsShell } from "../components/docs-shell";
 import {
   PlaygroundInvocationQueue,
+  PlaygroundLiveStateProvider,
   PlaygroundStatusStrip,
 } from "../components/playground-live-state";
 
@@ -107,21 +112,13 @@ function hostUrl() {
 
 export default async function PlaygroundPage() {
   const owner = await getBrowserOwner();
-  const status = await codexdock.getWorkerStatus(owner);
-  const invocations = persistence.listInvocations
-    ? await persistence.listInvocations(owner)
-    : [];
-  const visibleInvocations = invocations.filter(
-    (invocation) => invocation.status !== "cancelled",
-  ).map((invocation) => withInvocationProgress(invocation));
   const currentHostUrl = hostUrl();
   const pairing = await createPairingCode(owner);
   const workerCommand = `codexdock connect ${currentHostUrl} --code ${pairing.code}
 codexdock start --skip-git-repo-check`;
-  const initialPlaygroundState = {
-    status,
-    invocations: visibleInvocations,
-  };
+  const initialPlaygroundState = hasDatabaseConnection()
+    ? await getPostgresPlaygroundState(owner)
+    : await getMemoryPlaygroundState(owner);
 
   return (
     <DocsShell currentPath="/playground">
@@ -134,48 +131,64 @@ codexdock start --skip-git-repo-check`;
         </p>
       </section>
 
-      <section className="section" aria-labelledby="worker-heading">
-        <PlaygroundStatusStrip initialState={initialPlaygroundState} />
+      <PlaygroundLiveStateProvider initialState={initialPlaygroundState}>
+        <section className="section" aria-labelledby="worker-heading">
+          <PlaygroundStatusStrip />
 
-        <div className="sectionIntro wide">
-          <p className="eyebrow">Connect</p>
-          <h2 id="worker-heading">Start a worker for this host.</h2>
-          <p>
-            This pairing code is scoped to this browser and expires at{" "}
-            <code>{new Date(pairing.expiresAt).toLocaleTimeString()}</code>.
-          </p>
-        </div>
-        <div className="commandBlock">
-          <div className="codeTitle commandHeader">
-            <span>Worker terminal</span>
-            <CopyButton value={workerCommand} />
+          <div className="sectionIntro wide">
+            <p className="eyebrow">Connect</p>
+            <h2 id="worker-heading">Start a worker for this host.</h2>
+            <p>
+              This pairing code is scoped to this browser and expires at{" "}
+              <code>{new Date(pairing.expiresAt).toLocaleTimeString()}</code>.
+            </p>
           </div>
-          <pre>
-            <code>{workerCommand}</code>
-          </pre>
-        </div>
-        <p className="mutedLine">
-          Run <code>codexdock logout</code> to clear saved connections and ignore
-          stale CodexDock environment fallback values until the next connect.
-        </p>
-      </section>
-
-      <section className="section" aria-labelledby="create-heading">
-        <div className="sectionIntro wide">
-          <p className="eyebrow">Create</p>
-          <h2 id="create-heading">Send work to the connected Codex worker.</h2>
-          <p>
-            Presets, invocation settings, and live results share one workspace.
+          <div className="commandBlock">
+            <div className="codeTitle commandHeader">
+              <span>Worker terminal</span>
+              <CopyButton value={workerCommand} />
+            </div>
+            <pre>
+              <code>{workerCommand}</code>
+            </pre>
+          </div>
+          <p className="mutedLine">
+            Run <code>codexdock logout</code> to clear saved connections and ignore
+            stale CodexDock environment fallback values until the next connect.
           </p>
-        </div>
-        <div className="playgroundWorkspace">
-          <PlaygroundCreatePanel
-            createInvocation={createInvocation}
-            presets={quickActions}
-          />
-          <PlaygroundInvocationQueue embedded initialState={initialPlaygroundState} />
-        </div>
-      </section>
+        </section>
+
+        <section className="section" aria-labelledby="create-heading">
+          <div className="sectionIntro wide">
+            <p className="eyebrow">Create</p>
+            <h2 id="create-heading">Send work to the connected Codex worker.</h2>
+            <p>
+              Presets, invocation settings, and live results share one workspace.
+            </p>
+          </div>
+          <div className="playgroundWorkspace">
+            <PlaygroundCreatePanel
+              createInvocation={createInvocation}
+              presets={quickActions}
+            />
+            <PlaygroundInvocationQueue embedded />
+          </div>
+        </section>
+      </PlaygroundLiveStateProvider>
     </DocsShell>
   );
+}
+
+async function getMemoryPlaygroundState(owner: Awaited<ReturnType<typeof getBrowserOwner>>) {
+  const status = await codexdock.getWorkerStatus(owner);
+  const invocations = persistence.listInvocations
+    ? await persistence.listInvocations(owner)
+    : [];
+
+  return {
+    status,
+    invocations: invocations
+      .filter((invocation) => invocation.status !== "cancelled")
+      .map((invocation) => withInvocationProgress(invocation)),
+  };
 }

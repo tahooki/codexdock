@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 import {
   CodexDockHttpError,
   codexDockErrorSchema,
@@ -12,9 +12,11 @@ import {
   type FailInvocationInput,
   type InvocationRecord,
   type WorkerRecord,
+  type WorkerStatusResult,
+  withInvocationProgress,
 } from "@codexdock/sdk";
 
-type Sql = ReturnType<typeof neon>;
+type Sql = ReturnType<typeof postgres>;
 type Row = Record<string, unknown>;
 
 let sqlClient: Sql | null = null;
@@ -29,7 +31,12 @@ export function getSql() {
   if (!url) {
     throw new Error("DATABASE_URL or POSTGRES_URL is required for CodexDock Postgres storage.");
   }
-  sqlClient ??= neon(url);
+  sqlClient ??= postgres(url, {
+    idle_timeout: 20,
+    max: 1,
+    prepare: false,
+    ssl: shouldUseSsl(url) ? "require" : false,
+  });
   return sqlClient;
 }
 
@@ -268,6 +275,136 @@ export function createPostgresPersistence(): CodexDockPersistence {
   };
 }
 
+export async function getPostgresPlaygroundState(owner: CodexDockOwner) {
+  await ensureCodexDockSchema();
+  const [status, invocationRows] = await Promise.all([
+    getPostgresPlaygroundStatus(owner),
+    getSql()`
+      SELECT
+        invocation_id,
+        owner_kind,
+        owner_id,
+        worker_id,
+        type,
+        prompt,
+        payload,
+        required_capabilities,
+        status,
+        CASE
+          WHEN result IS NULL THEN NULL
+          WHEN pg_column_size(result) <= 32768 THEN result
+          ELSE jsonb_build_object(
+            'kind', 'large_result',
+            'summary', 'Result is stored but hidden from the live list to reduce transfer.',
+            'bytes', pg_column_size(result)
+          )
+        END AS result,
+        error,
+        attempts,
+        idempotency_key,
+        created_at,
+        claimed_at,
+        completed_at,
+        expires_at
+      FROM codexdock_invocations
+      WHERE owner_kind = ${owner.ownerKind}
+        AND owner_id = ${owner.ownerId}
+        AND status <> 'cancelled'
+      ORDER BY created_at DESC
+      LIMIT 20
+    `,
+  ]);
+
+  return {
+    invocations: asRows(invocationRows).map((row) =>
+      withInvocationProgress(invocationFromRow(row)),
+    ),
+    status,
+  };
+}
+
+export async function getPostgresPlaygroundStatus(owner: CodexDockOwner) {
+  await ensureCodexDockSchema();
+  const [workerRows, countRows] = await Promise.all([
+    getSql()`
+      SELECT *
+      FROM codexdock_workers
+      WHERE owner_kind = ${owner.ownerKind}
+        AND owner_id = ${owner.ownerId}
+      ORDER BY last_seen_at DESC
+    `,
+    getSql()`
+      SELECT status, count(*)::int AS count
+      FROM codexdock_invocations
+      WHERE owner_kind = ${owner.ownerKind}
+        AND owner_id = ${owner.ownerId}
+      GROUP BY status
+    `,
+  ]);
+
+  return {
+    counts: countsFromRows(asRows(countRows)),
+    ok: true,
+    owner,
+    workers: asRows(workerRows).map((row) => workerFromRow(row)),
+  } satisfies WorkerStatusResult;
+}
+
+export async function getPostgresPlaygroundActiveState(
+  owner: CodexDockOwner,
+  invocationIds: string[],
+) {
+  await ensureCodexDockSchema();
+  const requestedIds = invocationIds.slice(0, 20);
+  const invocationRows = requestedIds.length > 0
+    ? await getSql()`
+        WITH requested(invocation_id, ordinal) AS (
+          SELECT value, ordinality
+          FROM unnest(${requestedIds}::text[])
+            WITH ORDINALITY AS requested(value, ordinality)
+        )
+        SELECT
+          codexdock_invocations.invocation_id,
+          owner_kind,
+          owner_id,
+          worker_id,
+          type,
+          prompt,
+          payload,
+          required_capabilities,
+          status,
+          CASE
+            WHEN result IS NULL THEN NULL
+            WHEN pg_column_size(result) <= 32768 THEN result
+            ELSE jsonb_build_object(
+              'kind', 'large_result',
+              'summary', 'Result is stored but hidden from the live list to reduce transfer.',
+              'bytes', pg_column_size(result)
+            )
+          END AS result,
+          error,
+          attempts,
+          idempotency_key,
+          created_at,
+          claimed_at,
+          completed_at,
+          expires_at
+        FROM codexdock_invocations
+        JOIN requested
+          ON requested.invocation_id = codexdock_invocations.invocation_id
+        WHERE owner_kind = ${owner.ownerKind}
+          AND owner_id = ${owner.ownerId}
+        ORDER BY requested.ordinal
+      `
+    : [];
+
+  return {
+    invocations: asRows(invocationRows).map((row) =>
+      withInvocationProgress(invocationFromRow(row)),
+    ),
+  };
+}
+
 async function createSchema() {
   const sql = getSql();
   await sql`
@@ -415,8 +552,41 @@ function workerFromRow(row: Row): WorkerRecord {
   });
 }
 
+function countsFromRows(rows: Row[]): WorkerStatusResult["counts"] {
+  const counts: WorkerStatusResult["counts"] = {
+    cancelled: 0,
+    completed: 0,
+    expired: 0,
+    failed: 0,
+    pending: 0,
+    running: 0,
+  };
+
+  for (const row of rows) {
+    const status = row.status;
+    if (typeof status === "string" && status in counts) {
+      counts[status as keyof typeof counts] = Number(row.count ?? 0);
+    }
+  }
+
+  return counts;
+}
+
 function databaseUrl() {
   return process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? "";
+}
+
+function shouldUseSsl(url: string) {
+  const override = process.env.POSTGRES_SSL;
+  if (override === "disable") return false;
+  if (override === "require") return true;
+
+  try {
+    const hostname = new URL(url).hostname;
+    return hostname !== "localhost" && hostname !== "127.0.0.1";
+  } catch {
+    return true;
+  }
 }
 
 function jsonOrNull(value: unknown) {

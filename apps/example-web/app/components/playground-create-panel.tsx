@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import type { InvokeType, JsonObject } from "@codexdock/sdk";
+import { usePlaygroundRefresh } from "./playground-live-state";
 
 export interface PlaygroundPreset {
   type: InvokeType;
@@ -23,9 +24,11 @@ export function PlaygroundCreatePanel({
   const [selectedType, setSelectedType] = useState<InvokeType>(firstPreset.type);
   const [prompt, setPrompt] = useState(firstPreset.prompt);
   const [parameters, setParameters] = useState(stringifyParameters(firstPreset.parameters));
+  const refreshPlayground = usePlaygroundRefresh();
   const [, formAction, isCreating] = useActionState(
     async (submitCount: number, formData: FormData) => {
       await createInvocation(formData);
+      await refreshPlayground();
       return submitCount + 1;
     },
     0,
