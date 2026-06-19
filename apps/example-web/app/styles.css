@@ -976,15 +976,12 @@ td code,
 }
 
 .imageResult {
-  display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
-  gap: 14px;
+  display: block;
   margin-top: 14px;
-  align-items: start;
 }
 
 .imageResult img {
-  width: 180px;
+  width: min(100%, 260px);
   max-width: 100%;
   aspect-ratio: 1;
   border: 1px solid var(--line);
@@ -1005,7 +1002,6 @@ td code,
   overflow-wrap: anywhere;
 }
 
-.imageResult .jsonPreview,
 .textResult .jsonPreview {
   margin-top: 0;
 }
@@ -1139,8 +1135,7 @@ td code,
   .quickActionGrid,
   .statusStrip,
   .typeGrid,
-  .checkList,
-  .imageResult {
+  .checkList {
     grid-template-columns: 1fr;
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { InvocationRecord, WorkerStatusResult } from "@codexdock/sdk";
 
 interface PlaygroundState {
@@ -178,7 +178,6 @@ function ResultPreview({ invocation }: { invocation: InvocationRecord }) {
   const kind = resultKind(result);
   const image = imageDataUri(result);
   const text = textResult(result);
-  const preview = useMemo(() => JSON.stringify(result, null, 2), [result]);
 
   if (invocation.status === "failed") {
     return (
@@ -194,7 +193,6 @@ function ResultPreview({ invocation }: { invocation: InvocationRecord }) {
     return (
       <div className="imageResult">
         <img alt="Generated CodexDock result" src={image} />
-        <pre className="jsonPreview">{preview}</pre>
       </div>
     );
   }
@@ -203,16 +201,16 @@ function ResultPreview({ invocation }: { invocation: InvocationRecord }) {
     return (
       <div className="textResult">
         <p>{text}</p>
-        <pre className="jsonPreview">{preview}</pre>
+        <pre className="jsonPreview">{JSON.stringify(result, null, 2)}</pre>
       </div>
     );
   }
 
   if (kind === "object") {
-    return <pre className="jsonPreview">{preview}</pre>;
+    return <pre className="jsonPreview">{JSON.stringify(result, null, 2)}</pre>;
   }
 
-  return <pre className="jsonPreview">{preview}</pre>;
+  return <pre className="jsonPreview">{JSON.stringify(result, null, 2)}</pre>;
 }
 
 function resultKind(result: unknown) {
