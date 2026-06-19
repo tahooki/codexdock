@@ -33,7 +33,7 @@ export const runtimeDiagram = `sequenceDiagram
   participant SDK as "@codexdock/sdk"
   participant Store as "Persistence Adapter"
   participant Worker as "Local codexdock CLI"
-  participant Codex as "Local Codex Runtime"
+  participant Codex as "Local Codex app-server"
 
   User->>UI: Start AI generation
   UI->>Host: POST app generation route
@@ -58,7 +58,7 @@ export const runtimeDiagram = `sequenceDiagram
     SDK-->>Worker: invocation or 204
   end
 
-  Worker->>Codex: Run prompt in local workdir
+  Worker->>Codex: Run prompt through app-server
   Codex-->>Worker: generated result
   Worker->>Host: POST /worker/result
   Host->>SDK: validate worker claim + result schema

@@ -2,9 +2,11 @@
 
 CodexDock lets a web app send AI work to each user's own local Codex runtime instead of running every AI task from the web server.
 
-The host app stores an invocation with `@codexdock/sdk`. The matching user's local `codexdock` worker connects outbound to the host app, claims that user's pending work, runs it with the Codex SDK, and submits the result back to the host app.
+The host app stores an invocation with `@codexdock/sdk`. The matching user's local `codexdock` worker connects outbound to the host app, claims that user's pending work, runs it through the local Codex app-server, and submits the result back to the host app.
 
-Documentation: [codexdock.tahooki.com](https://codexdock.tahooki.com)
+## Documentation Site
+
+[codexdock.tahooki.com](https://codexdock.tahooki.com)
 
 ## Developer Note
 
@@ -188,16 +190,16 @@ codexdock connect https://your-app.example.com --code "$PAIRING_CODE"
 Start the worker:
 
 ```bash
-codexdock start --codex-workdir /path/to/project
+codexdock start
 ```
 
 For a non-git working directory:
 
 ```bash
-codexdock start \
-  --codex-workdir /path/to/project \
-  --skip-git-repo-check
+codexdock start --skip-git-repo-check
 ```
+
+Use `--codex-workdir /path/to/project` only when the worker should run Codex from a directory other than the current shell directory.
 
 ## Result Contracts
 
@@ -271,7 +273,6 @@ codexdock start \
   "mediaType": "image/png",
   "encoding": "base64",
   "base64": "...",
-  "dataUri": "data:image/png;base64,...",
   "promptUsed": "..."
 }
 ```
@@ -331,14 +332,3 @@ Run the example app:
 ```bash
 pnpm dev
 ```
-
-## Documentation
-
-- [CodexDock documentation](https://codexdock.tahooki.com)
-- [API docs](https://codexdock.tahooki.com/api-docs)
-- [Architecture sequence diagrams](docs/codexdock-architecture-sequences.md)
-- [Development spec and TODO](docs/codexdock-development-spec-and-todo.md)
-- [Planning document](docs/codexdock-planning-and-development.md)
-- [Owner-scoped SDK implementation plan](docs/codexdock-owner-scoped-sdk-implementation-plan.md)
-- [OpenAI API inspired generation plan](docs/openai-api-inspired-generation-plan.md)
-- [npm publish guide](docs/npm-publish-guide.md)

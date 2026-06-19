@@ -68,7 +68,8 @@ export default function ResultsPage() {
   "summary": "Generated markdown.",
   "filename": "release-notes.md",
   "mediaType": "text/markdown",
-  "text": "## Release notes",
+  "encoding": "utf-8",
+  "content": "## Release notes",
   "parameters": { "usage": "docs" }
 }`}</code>
             </pre>

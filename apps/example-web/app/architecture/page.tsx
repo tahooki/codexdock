@@ -59,7 +59,7 @@ export default function ArchitecturePage() {
             <h3>Outbound worker traffic</h3>
             <p>
               Local machines poll the host for work, so no inbound tunnel or
-              public local port is required for a user's Codex runtime.
+              public local port is required for a user's Codex app-server.
             </p>
           </article>
         </div>

@@ -2,7 +2,7 @@
 
 Local CLI worker for CodexDock.
 
-The CLI connects a host web app to a local Codex runtime. It polls the host app for pending invocations, runs them with its built-in Codex SDK adapter, and submits results back to the app.
+The CLI connects a host web app to a local Codex app-server runtime. It polls the host app for pending invocations, runs them through the local Codex app-server, and submits results back to the app.
 
 Building the host app side? Install [`@codexdock/sdk`](https://www.npmjs.com/package/@codexdock/sdk). The SDK exposes the route handlers, protocol schemas, and persistence interfaces that the `codexdock` CLI worker connects to.
 
@@ -45,17 +45,17 @@ CODEXDOCK_SERVER_URL=http://localhost:4321 \
 CODEXDOCK_WORKER_TOKEN=dev-worker-token \
 CODEXDOCK_OWNER_KIND=system \
 CODEXDOCK_OWNER_ID=local-dev \
-codexdock start --codex-workdir /path/to/project
+codexdock start
 ```
 
 For a non-git development folder:
 
 ```bash
-codexdock start \
-  --codex-workdir /path/to/project \
-  --skip-git-repo-check
+codexdock start --skip-git-repo-check
 ```
+
+Use `--codex-workdir /path/to/project` only when the worker should run Codex from a directory other than the current shell directory.
 
 ## Status
 
-Owner-scoped connection storage, discovery, pairing-code exchange, and worker polling are implemented. Development token mode is still available for local smoke tests. Revoke flows and richer approval UI are planned.
+Owner-scoped connection storage, discovery, pairing-code exchange, old-token revocation, and worker polling are implemented. Development token mode is still available for local smoke tests. Richer approval UI is planned.

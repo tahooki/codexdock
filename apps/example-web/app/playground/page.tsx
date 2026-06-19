@@ -3,6 +3,10 @@ import { codexdock, persistence } from "@/lib/codexdock";
 import { createPairingCode } from "@/lib/connection-store";
 import { getBrowserOwner } from "@/lib/owner";
 import { withInvocationProgress, type InvokeType, type JsonObject } from "@codexdock/sdk";
+import {
+  PlaygroundCreatePanel,
+  type PlaygroundPreset,
+} from "../components/playground-create-panel";
 import { CopyButton } from "../components/copy-button";
 import { DocsShell } from "../components/docs-shell";
 import {
@@ -12,7 +16,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const quickActions = [
+const quickActions: PlaygroundPreset[] = [
   {
     type: "generate_text",
     label: "Text",
@@ -57,7 +61,7 @@ const quickActions = [
       usage: "playground_file",
     },
   },
-] as const;
+];
 
 async function createInvocation(formData: FormData) {
   "use server";
@@ -90,10 +94,6 @@ function parseJsonObject(value: string): JsonObject {
     return {};
   }
   return {};
-}
-
-function stringifyParameters(value: JsonObject) {
-  return JSON.stringify(value, null, 2);
 }
 
 function hostUrl() {
@@ -164,58 +164,18 @@ codexdock start --skip-git-repo-check`;
         <div className="sectionIntro wide">
           <p className="eyebrow">Create</p>
           <h2 id="create-heading">Send work to the connected Codex worker.</h2>
+          <p>
+            Presets, invocation settings, and live results share one workspace.
+          </p>
         </div>
-        <div className="quickActionGrid">
-          {quickActions.map((action) => (
-            <form action={createInvocation} className="quickAction" key={action.type}>
-              <input name="type" type="hidden" value={action.type} />
-              <input name="prompt" type="hidden" value={action.prompt} />
-              <input
-                name="parameters"
-                type="hidden"
-                value={stringifyParameters(action.parameters)}
-              />
-              <span>{action.label}</span>
-              <strong>{action.title}</strong>
-              <p>{action.cue}</p>
-              <button type="submit">Create</button>
-            </form>
-          ))}
+        <div className="playgroundWorkspace">
+          <PlaygroundCreatePanel
+            createInvocation={createInvocation}
+            presets={quickActions}
+          />
+          <PlaygroundInvocationQueue embedded initialState={initialPlaygroundState} />
         </div>
-
-        <form action={createInvocation} className="playgroundForm">
-          <div className="formHeader">
-            <h3>Custom invocation</h3>
-            <button type="submit">Create invocation</button>
-          </div>
-          <label>
-            <span>Type</span>
-            <select name="type" defaultValue="generate_text">
-              <option value="generate_text">generate_text</option>
-              <option value="generate_image">generate_image</option>
-              <option value="generate_object">generate_object</option>
-              <option value="generate_file">generate_file</option>
-            </select>
-          </label>
-          <label>
-            <span>Prompt</span>
-            <textarea
-              name="prompt"
-              defaultValue="Write a short launch note for CodexDock."
-            />
-          </label>
-          <label>
-            <span>Parameters JSON</span>
-            <textarea
-              className="monoInput"
-              name="parameters"
-              defaultValue={'{\n  "usage": "custom_playground"\n}'}
-            />
-          </label>
-        </form>
       </section>
-
-      <PlaygroundInvocationQueue initialState={initialPlaygroundState} />
     </DocsShell>
   );
 }

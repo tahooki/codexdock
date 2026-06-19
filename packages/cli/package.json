@@ -1,7 +1,7 @@
 {
   "name": "codexdock",
-  "version": "0.2.4",
-  "description": "CLI worker that connects host apps to a local Codex runtime.",
+  "version": "0.2.6",
+  "description": "CLI worker that connects host apps to a local Codex app-server runtime.",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "@codexdock/sdk": "workspace:*",
-    "@openai/codex-sdk": "^0.140.0"
+    "@openai/codex": "^0.140.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

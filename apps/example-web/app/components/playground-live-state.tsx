@@ -16,6 +16,23 @@ interface PlaygroundStateResponse extends PlaygroundState {
   ok: boolean;
 }
 
+const dateTimeFormatter = new Intl.DateTimeFormat("ko-KR", {
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  month: "numeric",
+  second: "2-digit",
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+});
+
+const timeFormatter = new Intl.DateTimeFormat("ko-KR", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: "Asia/Seoul",
+});
+
 export function PlaygroundStatusStrip({ initialState }: { initialState: PlaygroundState }) {
   const state = usePlaygroundState(initialState);
   const onlineWorkers = state.status.workers.filter((worker) => worker.status === "online");
@@ -25,10 +42,22 @@ export function PlaygroundStatusStrip({ initialState }: { initialState: Playgrou
   );
 }
 
-export function PlaygroundInvocationQueue({ initialState }: { initialState: PlaygroundState }) {
+export function PlaygroundInvocationQueue({
+  embedded = false,
+  initialState,
+}: {
+  embedded?: boolean;
+  initialState: PlaygroundState;
+}) {
   const state = usePlaygroundState(initialState);
 
-  return <InvocationQueue invocations={state.invocations} onRefresh={state.refresh} />;
+  return (
+    <InvocationQueue
+      embedded={embedded}
+      invocations={state.invocations}
+      onRefresh={state.refresh}
+    />
+  );
 }
 
 function usePlaygroundState(initialState: PlaygroundState) {
@@ -96,17 +125,22 @@ function StatusStrip({
 }
 
 function InvocationQueue({
+  embedded,
   invocations,
   onRefresh,
 }: {
+  embedded: boolean;
   invocations: InvocationRecord[];
   onRefresh: () => Promise<void>;
 }) {
-  return (
-    <section className="section" aria-labelledby="invocations-heading">
-      <div className="sectionIntro wide">
-        <p className="eyebrow">Results</p>
+  const content = (
+    <>
+      <div className={embedded ? "queueHeader" : "sectionIntro wide"}>
+        <p className="eyebrow">Queue</p>
         <h2 id="invocations-heading">Invocation queue</h2>
+        {embedded ? (
+          <p>Live worker handoff and results.</p>
+        ) : null}
       </div>
       <div className="invocationList">
         {invocations.length === 0 ? (
@@ -121,6 +155,24 @@ function InvocationQueue({
           ))
         )}
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div
+        aria-labelledby="invocations-heading"
+        className="queuePanel"
+        role="region"
+      >
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <section className="section" aria-labelledby="invocations-heading">
+      {content}
     </section>
   );
 }
@@ -168,7 +220,7 @@ function InvocationItem({
         </div>
       </div>
       <div className="invocationMeta">
-        <span>Created {new Date(invocation.createdAt).toLocaleString()}</span>
+        <span>Created {formatDateTime(invocation.createdAt)}</span>
         {invocation.workerId ? <span>Worker {invocation.workerId}</span> : null}
       </div>
       <p className="promptLine">{invocation.prompt}</p>
@@ -268,11 +320,11 @@ function progressStepCopy(step: InvocationProgressStep) {
 }
 
 function formatStepTime(value: string) {
-  return new Date(value).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  return timeFormatter.format(new Date(value));
+}
+
+function formatDateTime(value: string) {
+  return dateTimeFormatter.format(new Date(value));
 }
 
 function ResultPreview({ invocation }: { invocation: InvocationRecord }) {

@@ -25,20 +25,28 @@ interface ConnectionStore {
   revokeWorkerTokens(owner: CodexDockOwner, workerId: string): Promise<void>;
 }
 
-const memoryPairingCodes = new Map<
-  string,
-  CodexDockOwner & { expiresAt: string; usedAt?: string }
->();
-const memoryWorkerTokens = new Map<
-  string,
-  CodexDockOwner & { workerId: string; revokedAt?: string }
->();
+type MemoryPairingCodeRecord = CodexDockOwner & { expiresAt: string; usedAt?: string };
+type MemoryWorkerTokenRecord = CodexDockOwner & { workerId: string; revokedAt?: string };
 
-let store: ConnectionStore | null = null;
+const globalForConnectionStore = globalThis as unknown as {
+  codexDockConnectionStore?: ConnectionStore;
+  codexDockMemoryPairingCodes?: Map<string, MemoryPairingCodeRecord>;
+  codexDockMemoryWorkerTokens?: Map<string, MemoryWorkerTokenRecord>;
+};
+
+const memoryPairingCodes =
+  globalForConnectionStore.codexDockMemoryPairingCodes ?? new Map<string, MemoryPairingCodeRecord>();
+const memoryWorkerTokens =
+  globalForConnectionStore.codexDockMemoryWorkerTokens ?? new Map<string, MemoryWorkerTokenRecord>();
+
+globalForConnectionStore.codexDockMemoryPairingCodes = memoryPairingCodes;
+globalForConnectionStore.codexDockMemoryWorkerTokens = memoryWorkerTokens;
 
 export function getConnectionStore(): ConnectionStore {
-  store ??= hasDatabaseConnection() ? createPostgresConnectionStore() : createMemoryConnectionStore();
-  return store;
+  globalForConnectionStore.codexDockConnectionStore ??= hasDatabaseConnection()
+    ? createPostgresConnectionStore()
+    : createMemoryConnectionStore();
+  return globalForConnectionStore.codexDockConnectionStore;
 }
 
 export async function createPairingCode(owner: CodexDockOwner) {

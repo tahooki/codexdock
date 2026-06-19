@@ -738,51 +738,132 @@ td code,
   margin-top: 22px;
 }
 
-.quickActionGrid {
+.playgroundWorkspace {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: minmax(300px, 0.78fr) minmax(0, 1.22fr);
+  gap: 14px;
+  align-items: start;
   margin-top: 26px;
 }
 
-.quickAction {
+.createPanel,
+.queuePanel {
   min-width: 0;
-  min-height: 156px;
-  display: grid;
-  grid-template-rows: auto auto auto 1fr;
-  gap: 8px;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
-  padding: 15px;
 }
 
-.quickAction:hover {
-  border-color: var(--accent);
-  background: #fbfefd;
+.createPanel {
+  display: grid;
 }
 
-.quickAction span {
-  color: var(--amber);
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
+.queuePanel {
+  max-height: 880px;
+  overflow-y: auto;
 }
 
-.quickAction strong {
+.presetHeader,
+.queueHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff 0%, var(--surface-soft) 100%);
+  padding: 16px 18px;
+}
+
+.presetHeader h3,
+.queueHeader h2 {
+  margin: 0;
   color: var(--text);
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1.25;
 }
 
-.quickAction p {
+.presetHeader span {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--surface-tint);
+  color: var(--accent-strong);
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.queueHeader {
+  display: grid;
+}
+
+.queueHeader p:not(.eyebrow) {
   margin: 0;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.45;
 }
 
-.quickAction button,
+.presetGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 14px;
+}
+
+.presetButton {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-soft);
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.presetButton:hover {
+  border-color: #9fd8d1;
+  background: #fbfefd;
+}
+
+.presetButton:focus-visible,
+.playgroundForm button:focus-visible,
+.cancelInvocationButton:focus-visible {
+  outline: 2px solid #8ccdc5;
+  outline-offset: 2px;
+}
+
+.presetButton.selected {
+  border-color: var(--accent);
+  background: var(--surface-tint);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.presetButton span {
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.presetButton strong {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.presetButton small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .playgroundForm button {
   min-height: 38px;
   align-self: end;
@@ -796,15 +877,23 @@ td code,
   cursor: pointer;
 }
 
-.quickAction button:hover,
 .playgroundForm button:hover {
   background: var(--accent-strong);
+}
+
+.playgroundForm button:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .playgroundForm {
   display: grid;
   gap: 14px;
-  margin-top: 18px;
+  margin-top: 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: #ffffff;
   padding: 18px;
 }
 
@@ -836,6 +925,7 @@ td code,
   color: var(--text);
   padding: 10px 11px;
   font-size: 14px;
+  font-weight: 700;
 }
 
 .playgroundForm textarea {
@@ -853,6 +943,11 @@ td code,
   display: grid;
   gap: 12px;
   margin-top: 26px;
+}
+
+.queuePanel .invocationList {
+  margin-top: 0;
+  padding: 14px;
 }
 
 .invocationItem {
@@ -1235,7 +1330,7 @@ td code,
   .featureGrid.twoColumn,
   .docLinkGrid,
   .codeGrid,
-  .quickActionGrid,
+  .playgroundWorkspace,
   .statusStrip,
   .typeGrid,
   .checkList {
@@ -1275,8 +1370,8 @@ td code,
     width: 100%;
   }
 
-  .quickAction {
-    min-height: 140px;
+  .queuePanel {
+    max-height: none;
   }
 
   .imageResult img {
@@ -1298,6 +1393,18 @@ td code,
   .buttonLink,
   .textLink {
     width: 100%;
+  }
+
+  .presetGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .presetHeader {
+    display: grid;
+  }
+
+  .presetHeader span {
+    justify-self: start;
   }
 
   h1 {

@@ -172,7 +172,7 @@ async function exchangePairingCode(
 
 async function startCommand(args: string[]) {
   const options = parseFlags(args);
-  assertSdkAdapterOption(options.adapter);
+  assertAppServerAdapterOption(options.adapter);
   const config = await loadConfigWithEnv(options.connection);
   const adapter = createAdapter(codexAdapterOptions(options));
   const deviceName = options["device-name"] ?? "local-dev";
@@ -182,7 +182,7 @@ async function startCommand(args: string[]) {
     "generate_file",
     "generate_image",
     "json_result",
-    "codex_sdk",
+    "codex_app_server",
   ];
 
   const connect = await postJson<{ polling?: { emptyMinMs?: number; emptyMaxMs?: number } }>(
@@ -280,7 +280,7 @@ async function versionCommand() {
 
 async function doctorCommand(args: string[]) {
   const options = parseFlags(args);
-  assertSdkAdapterOption(options.adapter);
+  assertAppServerAdapterOption(options.adapter);
   const adapter = createAdapter(codexAdapterOptions(options));
   const result = await adapter.doctor();
   console.log(JSON.stringify(result, null, 2));
@@ -578,10 +578,10 @@ function codexAdapterOptions(options: Record<string, string | undefined>) {
   };
 }
 
-function assertSdkAdapterOption(value: string | undefined): void {
+function assertAppServerAdapterOption(value: string | undefined): void {
   const configured = value ?? process.env.CODEXDOCK_ADAPTER;
-  if (!configured || configured === "sdk") return;
-  throw new Error("Adapter selection was removed. CodexDock now always uses the Codex SDK adapter.");
+  if (!configured || configured === "app-server") return;
+  throw new Error("Adapter selection was removed. CodexDock now always uses the Codex app-server adapter.");
 }
 
 function withJitter(ms: number): number {

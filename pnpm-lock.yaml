@@ -60,7 +60,7 @@ importers:
       '@codexdock/sdk':
         specifier: workspace:*
         version: link:../sdk
-      '@openai/codex-sdk':
+      '@openai/codex':
         specifier: ^0.140.0
         version: 0.140.0
     devDependencies:
@@ -439,10 +439,6 @@ packages:
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
-
-  '@openai/codex-sdk@0.140.0':
-    resolution: {integrity: sha512-sHErDmCss08GMFo3FYVDFtVYiDpf1f3VRdhB4PBILBauZVYuFVYr3INvf6xc6t+oD2MbjuU+gtrw0it9aGesdA==}
-    engines: {node: '>=18'}
 
   '@openai/codex@0.140.0':
     resolution: {integrity: sha512-FMnN12kJzVPljMTYRydLCNgd0cXXmVasNSfq2PtS42RMEIxoQ3dHtMvmno35hu2tfwrKNAAPCm4s+2PaFTEBGg==}
@@ -826,10 +822,6 @@ snapshots:
 
   '@next/swc-win32-x64-msvc@16.2.9':
     optional: true
-
-  '@openai/codex-sdk@0.140.0':
-    dependencies:
-      '@openai/codex': 0.140.0
 
   '@openai/codex@0.140.0':
     optionalDependencies:
