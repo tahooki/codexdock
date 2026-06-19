@@ -1084,13 +1084,13 @@ td code,
 }
 
 .imageResult img {
-  width: min(100%, 260px);
+  width: min(100%, 560px);
   max-width: 100%;
-  aspect-ratio: 1;
+  max-height: 70vh;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-soft);
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .jsonPreview {
@@ -1280,7 +1280,8 @@ td code,
   }
 
   .imageResult img {
-    width: min(100%, 240px);
+    width: 100%;
+    max-height: 62vh;
   }
 }
 
