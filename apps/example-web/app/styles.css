@@ -451,6 +451,7 @@ code {
 
 .feature,
 .typeCard,
+.usageCard,
 .docLinkCard,
 .playgroundForm,
 .invocationItem {
@@ -475,6 +476,7 @@ code {
 
 .feature p,
 .typeCard p,
+.usageCard p,
 .docLinkCard p {
   margin: 0;
   color: var(--muted);
@@ -616,12 +618,87 @@ td {
 td code,
 .sectionIntro code,
 .feature code,
+.usageCard code,
 .checkList code {
   border-radius: 4px;
   background: var(--surface-tint);
   color: var(--accent-strong);
   padding: 2px 4px;
   font-size: 0.92em;
+}
+
+.usageGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.usageCard {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.usageCard h3 {
+  margin-bottom: 0;
+  font-size: 17px;
+}
+
+.usageMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.usageMeta code {
+  font-size: 13px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.usageMeta span {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--amber-soft);
+  color: var(--amber);
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.usageCard dl {
+  display: grid;
+  gap: 9px;
+  margin: 2px 0 0;
+}
+
+.usageCard dl div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.usageCard dt {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.usageCard dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.usageCard dd code {
+  overflow-wrap: anywhere;
 }
 
 .typeGrid {
@@ -1344,6 +1421,7 @@ td code,
   .codeGrid,
   .playgroundWorkspace,
   .statusStrip,
+  .usageGrid,
   .typeGrid,
   .checkList {
     grid-template-columns: 1fr;

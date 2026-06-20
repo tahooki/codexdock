@@ -119,9 +119,37 @@ export const routeRows = [
   ["POST", "/api/codexdock/worker/result", "Submits a validated worker result."],
 ] as const;
 
-export const invocationTypes = [
-  ["generate_text", "text", "Captions, summaries, prompts, copy"],
-  ["generate_object", "object", "Structured UI data or domain objects"],
-  ["generate_file", "file", "Markdown, source files, generated artifacts"],
-  ["generate_image", "image", "Thumbnails, avatars, visual assets"],
+export const invocationUseCases = [
+  {
+    type: "generate_text",
+    kind: "text",
+    title: "Plain text the product can display immediately.",
+    use: "Use this for captions, summaries, prompts, labels, messages, and other copy where the result is one text field.",
+    examples: "Captions, summaries, prompts, copy",
+    result: 'kind: "text", text: "..."',
+  },
+  {
+    type: "generate_object",
+    kind: "object",
+    title: "Structured data for UI or domain workflows.",
+    use: "Use this when the host needs JSON-shaped output it can validate, render, or pass into product logic.",
+    examples: "Structured UI data or domain objects",
+    result: 'kind: "object", object: { ... }',
+  },
+  {
+    type: "generate_file",
+    kind: "file",
+    title: "A generated artifact with a filename and content.",
+    use: "Use this for markdown, source files, docs, config snippets, or any text file the host wants to save or preview.",
+    examples: "Markdown, source files, generated artifacts",
+    result: 'kind: "file", filename, content',
+  },
+  {
+    type: "generate_image",
+    kind: "image",
+    title: "An inline image artifact for product media.",
+    use: "Use this for thumbnails, avatars, previews, and visual assets that should come back as an image result envelope.",
+    examples: "Thumbnails, avatars, visual assets",
+    result: 'kind: "image", mediaType, base64',
+  },
 ] as const;
