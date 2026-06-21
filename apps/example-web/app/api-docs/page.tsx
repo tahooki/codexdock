@@ -1,5 +1,13 @@
 import { DocsShell } from "../components/docs-shell";
 import { invocationUseCases, routeRows } from "../docs-data";
+import { createPageMetadata } from "../site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "API Docs",
+  description:
+    "CodexDock API routes, invocation types, inputs, status reads, and worker result contracts.",
+  path: "/api-docs",
+});
 
 export default function ApiDocsPage() {
   return (

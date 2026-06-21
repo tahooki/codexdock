@@ -18,8 +18,15 @@ import {
   PlaygroundLiveStateProvider,
   PlaygroundStatusStrip,
 } from "../components/playground-live-state";
+import { createPageMetadata } from "../site-metadata";
 
 export const dynamic = "force-dynamic";
+export const metadata = createPageMetadata({
+  title: "Playground",
+  description:
+    "Create CodexDock text, image, object, and file invocations and inspect the local worker handoff.",
+  path: "/playground",
+});
 
 const quickActions: PlaygroundPreset[] = [
   {

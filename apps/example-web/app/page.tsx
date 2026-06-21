@@ -1,4 +1,12 @@
 import { DocsShell } from "./components/docs-shell";
+import { createPageMetadata } from "./site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "Overview",
+  description:
+    "CodexDock connects product UX to user-owned local Codex work through an SDK, CLI, and worker queue.",
+  path: "/",
+});
 
 const principles = [
   {

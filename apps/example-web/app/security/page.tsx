@@ -1,4 +1,12 @@
 import { DocsShell } from "../components/docs-shell";
+import { createPageMetadata } from "../site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "Security",
+  description:
+    "CodexDock security boundaries for worker tokens, scoped claims, host authorization, and production storage policy.",
+  path: "/security",
+});
 
 export default function SecurityPage() {
   return (

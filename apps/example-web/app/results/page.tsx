@@ -1,4 +1,12 @@
 import { DocsShell } from "../components/docs-shell";
+import { createPageMetadata } from "../site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "Results",
+  description:
+    "Validated CodexDock result envelopes for text, object, file, and image outputs from local workers.",
+  path: "/results",
+});
 
 export default function ResultsPage() {
   return (

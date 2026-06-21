@@ -1,6 +1,14 @@
 import { DocsShell } from "../components/docs-shell";
 import { MermaidBlock, MermaidScripts } from "../components/mermaid-block";
 import { ownerDiagram, runtimeDiagram } from "../docs-data";
+import { createPageMetadata } from "../site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "Architecture",
+  description:
+    "CodexDock architecture for outbound worker polling, owner-scoped invocation queues, and host-owned persistence.",
+  path: "/architecture",
+});
 
 export default function ArchitecturePage() {
   return (
